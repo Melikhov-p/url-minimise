@@ -9,21 +9,21 @@ import (
 )
 
 const (
-	shortUrlSize = 10
+	shortURLSize = 10
 	host         = "http://localhost:8080/"
 )
 
-var AllUrls []FullShortUrl
+var AllURLs []FullShortURL
 
-type FullShortUrl struct {
-	FullUrl  string
-	ShortUrl string
+type FullShortURL struct {
+	FullURL  string
+	ShortURL string
 }
 
 func main() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/{id}", GetFullUrl)
-	mux.HandleFunc("/", CreateShortUrl)
+	mux.HandleFunc("/{id}", GetFullURL)
+	mux.HandleFunc("/", CreateShortURL)
 
 	err := http.ListenAndServe(`localhost:8080`, mux)
 
@@ -32,11 +32,8 @@ func main() {
 	}
 }
 
-func (fsu *FullShortUrl) CheckShortUrl(shortUrl string) bool {
-	if shortUrl == fsu.ShortUrl {
-		return true
-	}
-	return false
+func (fsu *FullShortURL) CheckShortURL(shortURL string) bool {
+	return shortURL == fsu.ShortURL
 }
 
 func NewRandomString(size int) string { // Создает рандомную строку заданного размера
@@ -54,42 +51,42 @@ func NewRandomString(size int) string { // Создает рандомную с�
 	return string(b)
 }
 
-func CreateShortUrl(w http.ResponseWriter, r *http.Request) {
+func CreateShortURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else {
-		fullUrl, err := io.ReadAll(r.Body)
+		fullURL, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, `Upal`)
 		}
 
-		fullShortUrl := FullShortUrl{
-			FullUrl:  string(fullUrl),
-			ShortUrl: NewRandomString(shortUrlSize),
+		fullShortURL := FullShortURL{
+			FullURL:  string(fullURL),
+			ShortURL: NewRandomString(shortURLSize),
 		}
-		AllUrls = append(AllUrls, fullShortUrl)
+		AllURLs = append(AllURLs, fullShortURL)
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, `%s%s`, host, fullShortUrl.ShortUrl)
+		fmt.Fprintf(w, `%s%s`, host, fullShortURL.ShortURL)
 	}
 }
 
-func GetFullUrl(w http.ResponseWriter, r *http.Request) {
+func GetFullURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else {
 		id := r.PathValue("id")
-		var matchUrl *FullShortUrl
+		var matchURL *FullShortURL
 
-		for _, el := range AllUrls {
-			if el.CheckShortUrl(id) {
-				matchUrl = &el
+		for _, el := range AllURLs {
+			if el.CheckShortURL(id) {
+				matchURL = &el
 				break
 			}
 		}
 
-		if matchUrl != nil {
-			w.Header().Set(`Location`, (*matchUrl).FullUrl)
+		if matchURL != nil {
+			w.Header().Set(`Location`, (*matchURL).FullURL)
 			w.WriteHeader(http.StatusTemporaryRedirect)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
