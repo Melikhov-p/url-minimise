@@ -50,31 +50,31 @@ func TestCreateShortURL(t *testing.T) {
 func TestGetFullURL(t *testing.T) {
 	testCases := []struct {
 		method              string
-		shortUrl            string
+		shortURL            string
 		expectedCode        int
 		expectedContentType string
 	}{
 		{
 			method:              http.MethodPost,
-			shortUrl:            `TEST`,
+			shortURL:            `TEST`,
 			expectedCode:        http.StatusMethodNotAllowed,
 			expectedContentType: ``,
 		},
 		{
 			method:              http.MethodPut,
-			shortUrl:            `TEST`,
+			shortURL:            `TEST`,
 			expectedCode:        http.StatusMethodNotAllowed,
 			expectedContentType: ``,
 		},
 		{
 			method:              http.MethodDelete,
-			shortUrl:            `TEST`,
+			shortURL:            `TEST`,
 			expectedCode:        http.StatusMethodNotAllowed,
 			expectedContentType: ``,
 		},
 		{
 			method:              http.MethodGet,
-			shortUrl:            `TEST`,
+			shortURL:            `TEST`,
 			expectedCode:        http.StatusNotFound,
 			expectedContentType: ``,
 		},
@@ -82,7 +82,7 @@ func TestGetFullURL(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
-			request := httptest.NewRequest(test.method, "/"+test.shortUrl, nil)
+			request := httptest.NewRequest(test.method, "/"+test.shortURL, nil)
 			w := httptest.NewRecorder()
 			GetFullURL(w, request)
 
