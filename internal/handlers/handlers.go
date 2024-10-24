@@ -1,11 +1,11 @@
-package main
+package handlers
 
 import (
 	"fmt"
+	"github.com/Melikhov-p/url-minimise/internal/utils"
+	"github.com/go-chi/chi/v5"
 	"io"
-	"math/rand"
 	"net/http"
-	"time"
 )
 
 const (
@@ -13,7 +13,7 @@ const (
 	host         = "http://localhost:8080/"
 )
 
-var AllURLs []FullShortURL
+var AllURLs []FullShortURL //TODO: когда поднимем базу - убрать в отдельный пакет
 
 type FullShortURL struct {
 	FullURL  string
@@ -22,21 +22,6 @@ type FullShortURL struct {
 
 func (fsu *FullShortURL) CheckShortURL(shortURL string) bool {
 	return shortURL == fsu.ShortURL
-}
-
-func NewRandomString(size int) string { // Создает рандомную строку заданного размера
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"abcdefghijklmnopqrstuvwxyz" +
-		"0123456789")
-
-	b := make([]rune, size)
-	for i := range b {
-		b[i] = chars[rnd.Intn(len(chars))]
-	}
-
-	return string(b)
 }
 
 func CreateShortURL(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +36,7 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request) {
 
 		fullShortURL := FullShortURL{
 			FullURL:  string(fullURL),
-			ShortURL: NewRandomString(shortURLSize),
+			ShortURL: utils.RandomString(shortURLSize),
 		}
 		AllURLs = append(AllURLs, fullShortURL)
 
@@ -65,7 +50,7 @@ func GetFullURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	} else {
-		id := r.PathValue("id")
+		id := chi.URLParam(r, "id")
 		var matchURL *FullShortURL
 
 		for _, el := range AllURLs {
