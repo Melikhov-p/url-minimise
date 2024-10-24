@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// MyApiError — описание ошибки при неверном запросе.
-type MyApiError struct {
+// MyAPIError — описание ошибки при неверном запросе.
+type MyAPIError struct {
 	Code      int       `json:"code"`
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
@@ -22,7 +22,7 @@ type User struct {
 func main() {
 	var users []User
 
-	var respError MyApiError
+	var respError MyAPIError
 
 	client := resty.New()
 	url := "https://jsonplaceholder.typicode.com/users"
