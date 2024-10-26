@@ -6,7 +6,7 @@ import (
 
 const (
 	defaultSrvAddr = "localhost:8080"
-	defaultResAddr
+	defaultResAddr = "http://localhost:8080/"
 )
 
 var (

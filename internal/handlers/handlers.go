@@ -49,7 +49,7 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set(`Content-Type`, `text/plain`)
 	w.WriteHeader(http.StatusCreated)
-	_, _ = fmt.Fprintf(w, `%s%s`, "http://"+config.ResultAddr+"/", fullShortURL.ShortURL)
+	_, _ = fmt.Fprintf(w, `%s%s`, config.ResultAddr+"/", fullShortURL.ShortURL)
 }
 func randomString(size int) string { // Создает рандомную строку заданного размера
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
