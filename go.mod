@@ -2,7 +2,7 @@ module github.com/Melikhov-p/url-minimise
 
 require github.com/stretchr/testify v1.9.0
 
-require golang.org/x/net v0.27.0 // indirect
+require golang.org/x/net v0.30.0 // indirect
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

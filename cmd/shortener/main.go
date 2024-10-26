@@ -2,18 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/Melikhov-p/url-minimise/internal/handlers"
-	"github.com/go-chi/chi/v5"
+	"github.com/Melikhov-p/url-minimise/internal/app"
+	"github.com/Melikhov-p/url-minimise/internal/config"
 	"net/http"
 )
 
 func main() {
-	router := chi.NewRouter()
+	config.ParseFlags()
 
-	router.Post("/", handlers.CreateShortURL)
-	router.Get("/{id}", handlers.GetFullURL)
+	router := app.CreateRouter()
 
-	err := http.ListenAndServe(`localhost:8080`, router)
+	err := http.ListenAndServe(config.ServerAddr, router)
 
 	if err != nil {
 		panic(fmt.Sprintf(`Internal Error %v`, err.Error()))
