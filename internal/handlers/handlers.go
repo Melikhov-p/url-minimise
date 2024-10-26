@@ -29,27 +29,27 @@ func (fsu *FullShortURL) checkShortURL(shortURL string) bool {
 func CreateShortURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-	} else {
-		fullURL, err := io.ReadAll(r.Body)
-		defer func() {
-			_ = r.Body.Close()
-		}()
-
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Fatal(err)
-		}
-
-		fullShortURL := FullShortURL{
-			FullURL:  string(fullURL),
-			ShortURL: randomString(shortURLSize),
-		}
-		AllURLs = append(AllURLs, fullShortURL)
-
-		w.Header().Set(`Content-Type`, `text/plain`)
-		w.WriteHeader(http.StatusCreated)
-		_, _ = fmt.Fprintf(w, `%s%s`, "http://"+config.ResultAddr+"/", fullShortURL.ShortURL)
+		return
 	}
+	fullURL, err := io.ReadAll(r.Body)
+	defer func() {
+		_ = r.Body.Close()
+	}()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Fatal(err)
+	}
+
+	fullShortURL := FullShortURL{
+		FullURL:  string(fullURL),
+		ShortURL: randomString(shortURLSize),
+	}
+	AllURLs = append(AllURLs, fullShortURL)
+
+	w.Header().Set(`Content-Type`, `text/plain`)
+	w.WriteHeader(http.StatusCreated)
+	_, _ = fmt.Fprintf(w, `%s%s`, "http://"+config.ResultAddr+"/", fullShortURL.ShortURL)
 }
 func randomString(size int) string { // Создает рандомную строку заданного размера
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -67,6 +67,10 @@ func randomString(size int) string { // Создает рандомную стр
 }
 
 func GetFullURL(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 	id := chi.URLParam(r, "id")
 	var matchURL *FullShortURL
 
