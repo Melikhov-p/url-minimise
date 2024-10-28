@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"log"
 	"os"
 )
 
@@ -24,7 +23,6 @@ var (
 func ParseFlags() {
 	srvEnvAddr, srvEnvExist := os.LookupEnv("SERVER_ADDRESS")
 	resEnvAddr, resEnvExist := os.LookupEnv("BASE_URL")
-	log.Printf("Env variables: %s, %s", srvEnvAddr, resEnvAddr)
 
 	ServerAddr, ResultAddr = srvEnvAddr, resEnvAddr
 
