@@ -60,7 +60,7 @@ func randomString(size int) string { // Создает рандомную стр
 	}
 	str := string(b)
 
-	if ok := checkDuplicates(str); !ok { // если такого id нет - возвращаем его
+	if ok := checkDuplicates(str); ok { // если такого id нет - возвращаем его
 		return str
 	}
 
