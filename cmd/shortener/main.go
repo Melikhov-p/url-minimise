@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/Melikhov-p/url-minimise/internal/app"
-	"github.com/Melikhov-p/url-minimise/internal/config"
 	"log"
 	"net/http"
+
+	"github.com/Melikhov-p/url-minimise/internal/app"
+	"github.com/Melikhov-p/url-minimise/internal/config"
 )
 
 func main() {
-	var cfg *config.Config = config.NewConfig()
+	cfg := config.NewConfig()
 	cfg.Build()
 
 	router := app.CreateRouter(cfg)
