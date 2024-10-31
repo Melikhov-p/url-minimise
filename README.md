@@ -30,3 +30,7 @@ git fetch template && git checkout template/main .github
 При мёрже ветки с инкрементом в основную ветку `main` будут запускаться все автотесты.
 
 Подробнее про локальный и автоматический запуск читайте в [README автотестов](https://github.com/Yandex-Practicum/go-autotests).
+
+# **Флаги:**
+*       a : адрес на котором запускается сервер  -a localhost:8080
+*       b : адрес сокращенного URL -b locahost:8081

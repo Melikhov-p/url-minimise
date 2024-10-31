@@ -11,29 +11,36 @@ const (
 )
 
 var (
-	ServerAddr string
-	ResultAddr string
-)
-
-var (
 	srvFlagAddr string
 	resFlagAddr string
 )
 
-func ParseFlags() {
-	srvEnvAddr, srvEnvExist := os.LookupEnv("SERVER_ADDRESS")
+type Config struct {
+	ServerAddr string
+	ResultAddr string
+}
+
+func NewConfig() *Config {
+	return &Config{
+		ServerAddr: defaultSrvAddr,
+		ResultAddr: defaultResAddr,
+	}
+}
+
+func (c *Config) Build() {
+	srvEnvAddr, ok := os.LookupEnv("SERVER_ADDRESS")
 	resEnvAddr, resEnvExist := os.LookupEnv("BASE_URL")
 
-	ServerAddr, ResultAddr = srvEnvAddr, resEnvAddr
+	c.ServerAddr, c.ResultAddr = srvEnvAddr, resEnvAddr
 
 	flag.StringVar(&srvFlagAddr, "a", defaultSrvAddr, "Server host and port")
 	flag.StringVar(&resFlagAddr, "b", defaultResAddr, "Result host and port")
 	flag.Parse()
 
-	if !srvEnvExist {
-		ServerAddr = srvFlagAddr
+	if !ok {
+		c.ServerAddr = srvFlagAddr
 	}
 	if !resEnvExist {
-		ResultAddr = resFlagAddr
+		c.ResultAddr = resFlagAddr
 	}
 }

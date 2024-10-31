@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/Melikhov-p/url-minimise/internal/app"
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"log"
@@ -9,14 +8,15 @@ import (
 )
 
 func main() {
-	config.ParseFlags()
+	var cfg *config.Config = config.NewConfig()
+	cfg.Build()
 
-	router := app.CreateRouter()
+	router := app.CreateRouter(cfg)
 
-	log.Printf("Running server on %s", config.ServerAddr)
-	err := http.ListenAndServe(config.ServerAddr, router)
+	log.Printf("Running server on %s", cfg.ServerAddr)
+	err := http.ListenAndServe(cfg.ServerAddr, router)
 
 	if err != nil {
-		panic(fmt.Sprintf(`Internal Error %v`, err.Error()))
+		log.Fatal(err)
 	}
 }

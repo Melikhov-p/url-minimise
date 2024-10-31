@@ -2,31 +2,25 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/Melikhov-p/url-minimise/internal/config"
-	"github.com/go-chi/chi/v5"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
 	"time"
+
+	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
 	shortURLSize = 10
 )
 
-var AllURLs []FullShortURL //TODO: когда поднимем базу - убрать в отдельный пакет
+type storageURL map[string]string
 
-type FullShortURL struct {
-	FullURL  string
-	ShortURL string
-}
+var shortFullURL storageURL = storageURL{}
 
-func (fsu *FullShortURL) checkShortURL(shortURL string) bool {
-	return shortURL == fsu.ShortURL
-}
-
-func CreateShortURL(w http.ResponseWriter, r *http.Request) {
+func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -38,18 +32,20 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal(err)
+		return
 	}
 
-	fullShortURL := FullShortURL{
-		FullURL:  string(fullURL),
-		ShortURL: randomString(shortURLSize),
-	}
-	AllURLs = append(AllURLs, fullShortURL)
+	shortURL := randomString(shortURLSize)
+	shortFullURL[shortURL] = string(fullURL)
 
 	w.Header().Set(`Content-Type`, `text/plain`)
 	w.WriteHeader(http.StatusCreated)
-	_, _ = fmt.Fprintf(w, `%s%s`, config.ResultAddr+"/", fullShortURL.ShortURL)
+	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", shortURL)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 func randomString(size int) string { // Создает рандомную строку заданного размера
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -62,8 +58,17 @@ func randomString(size int) string { // Создает рандомную стр
 	for i := range b {
 		b[i] = chars[rnd.Intn(len(chars))]
 	}
+	str := string(b)
 
-	return string(b)
+	if ok := checkDuplicates(str); !ok { // если такого id нет - возвращаем его
+		return str
+	}
+
+	return randomString(shortURLSize)
+}
+func checkDuplicates(el string) bool {
+	checked := shortFullURL[el]
+	return checked == ""
 }
 
 func GetFullURL(w http.ResponseWriter, r *http.Request) {
@@ -72,19 +77,13 @@ func GetFullURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := chi.URLParam(r, "id")
-	var matchURL *FullShortURL
 
-	for _, el := range AllURLs {
-		if el.checkShortURL(id) {
-			matchURL = &el
-			break
-		}
-	}
-
-	if matchURL != nil {
-		w.Header().Set(`Location`, (*matchURL).FullURL)
-		w.WriteHeader(http.StatusTemporaryRedirect)
+	matchURL := shortFullURL[id]
+	if matchURL == "" {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
+	log.Printf("Matched Full URL %v", matchURL)
+	w.Header().Set(`Location`, matchURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
