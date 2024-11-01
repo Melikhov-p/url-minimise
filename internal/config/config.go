@@ -33,7 +33,7 @@ func (c *Config) Build() {
 	}
 
 	resEnvAddr, ok := os.LookupEnv("BASE_URL")
-	if !ok {
+	if ok {
 		c.ResultAddr = resEnvAddr
 	}
 }
