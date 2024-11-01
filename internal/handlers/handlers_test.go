@@ -1,15 +1,16 @@
 package handlers
 
 import (
-	"github.com/Melikhov-p/url-minimise/internal/config"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateShortURL(t *testing.T) {

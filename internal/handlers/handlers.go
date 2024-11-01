@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -35,7 +36,13 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 		return
 	}
 
-	shortURL := randomString(shortURLSize)
+	shortURL, err := randomString(shortURLSize)
+	if err != nil {
+		log.Printf("error create random string: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	shortFullURL[shortURL] = string(fullURL)
 
 	w.Header().Set(`Content-Type`, `text/plain`)
@@ -47,24 +54,28 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 		return
 	}
 }
-func randomString(size int) string { // Создает рандомную строку заданного размера
+func randomString(size int) (string, error) { // Создает рандомную строку заданного размера
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	tries := 5 // количество попыток создать уникальную строку
 
 	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 		"abcdefghijklmnopqrstuvwxyz" +
 		"0123456789")
 
-	b := make([]rune, size)
-	for i := range b {
-		b[i] = chars[rnd.Intn(len(chars))]
-	}
-	str := string(b)
+	for tries > 0 {
+		b := make([]rune, size)
+		for i := range b {
+			b[i] = chars[rnd.Intn(len(chars))]
+		}
+		str := string(b)
 
-	if ok := checkDuplicates(str); ok { // если такого id нет - возвращаем его
-		return str
+		if ok := checkDuplicates(str); ok {
+			return str, nil
+		}
+		tries--
 	}
 
-	return randomString(shortURLSize)
+	return "", errors.New("reached max tries limit")
 }
 func checkDuplicates(el string) bool {
 	checked := shortFullURL[el]
