@@ -21,3 +21,7 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+
+#golangci-lint directories
+golangci-lint/.cache
+golangci-lint/report-unformatted.json
