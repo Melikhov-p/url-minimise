@@ -24,4 +24,4 @@ vendor/
 
 #golangci-lint directories
 golangci-lint/.cache
-.golangci.yml
+golangci-lint/report-unformatted.json
