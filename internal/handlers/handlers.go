@@ -94,7 +94,6 @@ func GetFullURL(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	log.Printf("Matched Full URL %v", matchURL)
 	w.Header().Set(`Location`, matchURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }

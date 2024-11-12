@@ -6,18 +6,24 @@ import (
 
 	"github.com/Melikhov-p/url-minimise/internal/app"
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/logger"
+	"go.uber.org/zap"
 )
 
 func main() {
 	cfg := config.NewConfig()
 	cfg.Build()
 
+	if err := logger.Initialize("INFO"); err != nil {
+		log.Fatal("cannot run logger " + err.Error())
+	}
+
 	router := app.CreateRouter(cfg)
 
-	log.Printf("Running server on %s", cfg.ServerAddr)
+	logger.Log.Info("Running server on", zap.String("address", cfg.ServerAddr))
 	err := http.ListenAndServe(cfg.ServerAddr, router)
 
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal("Fatal error", zap.Error(err))
 	}
 }
