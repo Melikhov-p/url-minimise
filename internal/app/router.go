@@ -19,6 +19,12 @@ func CreateRouter(cfg *config.Config) chi.Router {
 				handlers.CreateShortURL(w, r, cfg)
 			}))
 	router.Get("/{id}", middlewares.WithLogging(handlers.GetFullURL))
+	router.Route("/api", func(r chi.Router) {
+		r.Post("/shorten", middlewares.WithLogging(
+			func(w http.ResponseWriter, r *http.Request) {
+				handlers.APICreateShortURL(w, r, cfg)
+			}))
+	})
 
 	return router
 }

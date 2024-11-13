@@ -159,3 +159,50 @@ func TestHappyPath(t *testing.T) {
 		assert.Equal(t, testGet.fullURL, getResponse.Header().Get("Location"))
 	})
 }
+
+func TestAPICreateShortURL(t *testing.T) {
+	router := chi.NewRouter()
+
+	router.Post("/api/shorten",
+		func(w http.ResponseWriter, r *http.Request) {
+			APICreateShortURL(w, r, config.NewConfig())
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	testCases := []struct {
+		name         string
+		request      string
+		method       string
+		expectedCode int
+	}{
+		{
+			name:         "APIHappyTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodPost,
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name:         "APIMethodNotAllowedTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodGet,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			request := resty.New().R()
+			request.URL = srv.URL + "/api/shorten"
+			request.Method = test.method
+
+			request.SetHeader("Content-Type", "application/json")
+			request.SetBody(test.request)
+
+			resp, err := request.Send()
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedCode, resp.StatusCode())
+		})
+	}
+}

@@ -1,25 +1,17 @@
 package handlers
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
-	"log"
-	"math/rand"
 	"net/http"
-	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/logger"
+	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
-
-const (
-	shortURLSize = 10
-)
-
-type storageURL map[string]string
-
-var shortFullURL storageURL = storageURL{}
 
 func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
 	if r.Method != http.MethodPost {
@@ -36,14 +28,13 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 		return
 	}
 
-	shortURL, err := randomString(shortURLSize)
+	var shortURL string
+	shortURL, err = models.Storage.AddURL(string(fullURL))
 	if err != nil {
-		log.Printf("error create random string: %v", err)
+		logger.Log.Error("error creating short URL", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	shortFullURL[shortURL] = string(fullURL)
 
 	w.Header().Set(`Content-Type`, `text/plain`)
 	w.WriteHeader(http.StatusCreated)
@@ -54,33 +45,6 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 		return
 	}
 }
-func randomString(size int) (string, error) { // Создает рандомную строку заданного размера
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	tries := 5 // количество попыток создать уникальную строку
-
-	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-		"abcdefghijklmnopqrstuvwxyz" +
-		"0123456789")
-
-	for tries > 0 {
-		b := make([]rune, size)
-		for i := range b {
-			b[i] = chars[rnd.Intn(len(chars))]
-		}
-		str := string(b)
-
-		if ok := checkDuplicates(str); ok {
-			return str, nil
-		}
-		tries--
-	}
-
-	return "", errors.New("reached max tries limit")
-}
-func checkDuplicates(el string) bool {
-	checked := shortFullURL[el]
-	return checked == ""
-}
 
 func GetFullURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -89,11 +53,49 @@ func GetFullURL(w http.ResponseWriter, r *http.Request) {
 	}
 	id := chi.URLParam(r, "id")
 
-	matchURL := shortFullURL[id]
+	matchURL := models.Storage.GetFullURL(id)
 	if matchURL == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	w.Header().Set(`Location`, matchURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func APICreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
+	if r.Method != http.MethodPost {
+		logger.Log.Info("wrong method used", zap.String("method", r.Method))
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	logger.Log.Debug("start decoding request")
+	var req models.Request
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&req); err != nil {
+		logger.Log.Error("error decoding request json", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	shortURL, err := models.Storage.AddURL(req.URL)
+	if err != nil {
+		logger.Log.Error("error creating short URL", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	logger.Log.Debug("start encoding response")
+	res := models.Response{
+		ResultURL: cfg.ResultAddr + "/" + shortURL,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	w.WriteHeader(http.StatusCreated)
+	if err = enc.Encode(res); err != nil {
+		logger.Log.Error("error encoding response", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
