@@ -71,50 +71,43 @@ func (r *loggerResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func GzipMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// по умолчанию устанавливаем оригинальный http.ResponseWriter как тот,
-		// который будем передавать следующей функции
+func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
+	comp := func(w http.ResponseWriter, r *http.Request) {
 		ow := w
 
-		// проверяем, что клиент умеет получать от сервера сжатые данные в формате gzip
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsGzip := strings.Contains(acceptEncoding, "gzip")
-		if supportsGzip {
-			logger.Log.Debug("accept gzip encoding")
-			// оборачиваем оригинальный http.ResponseWriter новым с поддержкой сжатия
-			cw := compressor.NewGzipCompressWriter(w)
-			// меняем оригинальный http.ResponseWriter на новый
-			ow = cw
-			// не забываем отправить клиенту все сжатые данные после завершения middleware
-			defer func() {
-				if err := cw.Close(); err != nil {
-					logger.Log.Error("cannot close gzip writer")
-				}
-			}()
+		content := w.Header().Get("Content-Type")
+
+		if content == "application/json" || content == "text/html" {
+			acceptEncoding := r.Header.Get("Accept-Encoding")
+			if strings.Contains(acceptEncoding, "gzip") {
+				cw := compress.NewCompressWrite(w)
+				ow = cw
+				defer func() {
+					if err := cw.Close(); err != nil {
+						logger.Log.Error("error closing compressWriter", zap.Error(err))
+					}
+				}()
+			}
 		}
 
-		// проверяем, что клиент отправил серверу сжатые данные в формате gzip
 		contentEncoding := r.Header.Get("Content-Encoding")
-		sendsGzip := strings.Contains(contentEncoding, "gzip")
-		if sendsGzip {
-			logger.Log.Debug("got gzip encoded")
-			// оборачиваем тело запроса в io.Reader с поддержкой декомпрессии
-			cr, err := compressor.NewGzipCompressReader(r.Body)
+
+		if strings.Contains(contentEncoding, "gzip") {
+			cr, err := compress.NewCompressReader(r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			// меняем тело запроса на новое
 			r.Body = cr
 			defer func() {
 				if err = cr.Close(); err != nil {
-					logger.Log.Error("cannot close gzip reader")
+					logger.Log.Error("error closing compressReader", zap.Error(err))
 				}
 			}()
 		}
 
-		// передаём управление хендлеру
-		next.ServeHTTP(ow, r)
+		h.ServeHTTP(ow, r)
 	}
+
+	return comp
 }

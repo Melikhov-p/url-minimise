@@ -25,6 +25,7 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 	}()
 
 	if err != nil {
+		logger.Log.Error("error read body from text", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -42,6 +43,7 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", shortURL)
 
 	if err != nil {
+		logger.Log.Error("error writing body", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -94,7 +96,7 @@ func APICreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Confi
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
 	w.WriteHeader(http.StatusCreated)
-	if err = enc.Encode(res); err != nil {
+	if err = enc.Encode(res); err != nil && !errors.Is(err, io.EOF) {
 		logger.Log.Error("error encoding response", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
