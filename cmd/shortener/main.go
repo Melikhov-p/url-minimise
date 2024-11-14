@@ -14,7 +14,7 @@ func main() {
 	cfg := config.NewConfig()
 	cfg.Build()
 
-	if err := logger.Initialize("INFO"); err != nil {
+	if err := logger.Initialize("DEBUG"); err != nil {
 		log.Fatal("cannot run logger " + err.Error())
 	}
 

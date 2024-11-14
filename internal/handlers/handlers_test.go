@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -8,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/middlewares"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateShortURL(t *testing.T) {
@@ -205,4 +209,53 @@ func TestAPICreateShortURL(t *testing.T) {
 			assert.Equal(t, test.expectedCode, resp.StatusCode())
 		})
 	}
+}
+
+func TestCompressor(t *testing.T) {
+	router := chi.NewRouter()
+
+	router.Post("/api/shorten",
+		middlewares.GzipMiddleware(func(w http.ResponseWriter, r *http.Request) {
+			APICreateShortURL(w, r, config.NewConfig())
+		}))
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	requestBody := `{"url": "https://practicum.yandex.ru/"}`
+
+	t.Run("sends_gzip", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		request := resty.New().R()
+		request.URL = srv.URL + "/api/shorten"
+		request.Method = http.MethodPost
+		request.Body = buf
+		request.Header.Set("Content-Encoding", "gzip")
+
+		response, reqErr := request.Send()
+
+		assert.NoError(t, reqErr)
+		assert.Equal(t, http.StatusCreated, response.StatusCode())
+	})
+
+	t.Run("accepts_gzip", func(t *testing.T) {
+		buf := bytes.NewBufferString(requestBody)
+		request := resty.New().R()
+		request.URL = srv.URL + "/api/shorten"
+		request.Method = http.MethodPost
+		request.Body = buf
+		request.Header.Add("Accept-Encoding", "gzip")
+
+		resp, err := request.Send()
+
+		require.NoError(t, err)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode())
+	})
 }

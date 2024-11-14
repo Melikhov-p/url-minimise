@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -72,7 +73,7 @@ func APICreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Confi
 	logger.Log.Debug("start decoding request")
 	var req models.Request
 	dec := json.NewDecoder(r.Body)
-	if err := dec.Decode(&req); err != nil {
+	if err := dec.Decode(&req); err != nil && !errors.Is(err, io.EOF) {
 		logger.Log.Error("error decoding request json", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
