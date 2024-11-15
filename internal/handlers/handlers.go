@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
+func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config, storage *models.Storage) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -30,17 +30,20 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 		return
 	}
 
-	var shortURL string
-	shortURL, err = models.Storage.AddURL(string(fullURL))
+	newURL, err := models.NewStorageURL(string(fullURL), storage)
 	if err != nil {
 		logger.Log.Error("error creating short URL", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if err = storage.AddURL(newURL); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set(`Content-Type`, `text/plain`)
 	w.WriteHeader(http.StatusCreated)
-	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", shortURL)
+	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", newURL.ShortURL)
 
 	if err != nil {
 		logger.Log.Error("error writing body", zap.Error(err))
@@ -49,14 +52,14 @@ func CreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) 
 	}
 }
 
-func GetFullURL(w http.ResponseWriter, r *http.Request) {
+func GetFullURL(w http.ResponseWriter, r *http.Request, storage *models.Storage) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	id := chi.URLParam(r, "id")
 
-	matchURL := models.Storage.GetFullURL(id)
+	matchURL := storage.GetFullURL(id)
 	if matchURL == "" {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -65,7 +68,7 @@ func GetFullURL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func APICreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config) {
+func APICreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Config, storage *models.Storage) {
 	if r.Method != http.MethodPost {
 		logger.Log.Info("wrong method used", zap.String("method", r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -81,16 +84,20 @@ func APICreateShortURL(w http.ResponseWriter, r *http.Request, cfg *config.Confi
 		return
 	}
 
-	shortURL, err := models.Storage.AddURL(req.URL)
+	newURL, err := models.NewStorageURL(req.URL, storage)
 	if err != nil {
 		logger.Log.Error("error creating short URL", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if err = storage.AddURL(newURL); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	logger.Log.Debug("start encoding response")
 	res := models.Response{
-		ResultURL: cfg.ResultAddr + "/" + shortURL,
+		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

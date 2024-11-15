@@ -7,6 +7,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/app"
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/logger"
+	"github.com/Melikhov-p/url-minimise/internal/models"
 	"go.uber.org/zap"
 )
 
@@ -18,10 +19,15 @@ func main() {
 		log.Fatal("cannot run logger " + err.Error())
 	}
 
-	router := app.CreateRouter(cfg)
+	storage, err := models.NewStorageFromFile(cfg)
+	if err != nil {
+		logger.Log.Fatal("error building storage from file", zap.Error(err))
+	}
+
+	router := app.CreateRouter(cfg, storage)
 
 	logger.Log.Info("Running server on", zap.String("address", cfg.ServerAddr))
-	err := http.ListenAndServe(cfg.ServerAddr, router)
+	err = http.ListenAndServe(cfg.ServerAddr, router)
 
 	if err != nil {
 		logger.Log.Fatal("Fatal error", zap.Error(err))
