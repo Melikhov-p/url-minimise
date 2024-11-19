@@ -8,33 +8,36 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
-func CreateRouter(cfg *config.Config, storage *models.Storage) chi.Router {
+func CreateRouter(cfg *config.Config, storage models.IStorage, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
+	middleware := middlewares.Middleware{
+		Logger: logger,
+	}
 
-	router.Post(
-		"/", middlewares.Conveyor(
-			func(w http.ResponseWriter, r *http.Request) {
-				handlers.CreateShortURL(w, r, cfg, storage)
-			},
-			middlewares.GzipMiddleware,
-			middlewares.WithLogging,
-		))
-	router.Get("/{id}", middlewares.Conveyor(
-		func(w http.ResponseWriter, r *http.Request) {
-			handlers.GetFullURL(w, r, storage)
-		},
-		middlewares.GzipMiddleware,
-		middlewares.WithLogging))
+	router.Use(
+		middleware.WithLogging,
+		middleware.GzipMiddleware,
+	)
+
+	createURLWrapper := func(w http.ResponseWriter, r *http.Request) {
+		handlers.CreateShortURL(w, r, cfg, storage, logger)
+	}
+	getURLWrapper := func(w http.ResponseWriter, r *http.Request) {
+		handlers.GetFullURL(w, r, storage, logger)
+	}
+	createURLAPIWrapper := func(w http.ResponseWriter, r *http.Request) {
+		handlers.APICreateShortURL(w, r, cfg, storage, logger)
+	}
+
+	router.Post("/", createURLWrapper)
+
+	router.Get("/{id}", getURLWrapper)
+
 	router.Route("/api", func(r chi.Router) {
-		r.Post("/shorten", middlewares.Conveyor(
-			func(w http.ResponseWriter, r *http.Request) {
-				handlers.APICreateShortURL(w, r, cfg, storage)
-			},
-			middlewares.GzipMiddleware,
-			middlewares.WithLogging,
-		))
+		r.Post("/shorten", createURLAPIWrapper)
 	})
 
 	return router

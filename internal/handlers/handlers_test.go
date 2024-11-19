@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/go-chi/chi/v5"
@@ -56,9 +57,11 @@ func TestCreateShortURL(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
 			cfg := config.NewConfig()
-			storage, err := models.NewStorageFromFile(cfg)
+			logger, err := loggerBuilder.BuildLogger("DEBUG")
 			assert.NoError(t, err)
-			CreateShortURL(w, request, cfg, storage)
+			storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+			assert.NoError(t, err)
+			CreateShortURL(w, request, cfg, storage, logger)
 
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedContentType, w.Header().Get(`Content-Type`))
@@ -103,9 +106,11 @@ func TestGetFullURL(t *testing.T) {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/"+test.shortURL, http.NoBody)
 			w := httptest.NewRecorder()
-			storage, err := models.NewStorageFromFile(config.NewConfig())
+			logger, err := loggerBuilder.BuildLogger("DEBUG")
 			assert.NoError(t, err)
-			GetFullURL(w, request, storage)
+			storage, err := models.NewStorage(models.STORAGEFROMFILE, config.NewConfig(), logger)
+			assert.NoError(t, err)
+			GetFullURL(w, request, storage, logger)
 
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedContentType, w.Header().Get(`Content-Type`))
@@ -116,15 +121,21 @@ func TestGetFullURL(t *testing.T) {
 func TestHappyPath(t *testing.T) {
 	router := chi.NewRouter()
 	cfg := config.NewConfig()
-	storage, err := models.NewStorageFromFile(cfg)
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	assert.NoError(t, err)
+	storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
 
 	router.Post("/",
 		func(w http.ResponseWriter, r *http.Request) {
-			CreateShortURL(w, r, cfg, storage)
+			CreateShortURL(w, r, cfg, storage, logger)
 		})
 	router.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
-		GetFullURL(w, r, storage)
+		GetFullURL(w, r, storage, logger)
 	})
 
 	srv := httptest.NewServer(router)
@@ -178,12 +189,18 @@ func TestHappyPath(t *testing.T) {
 func TestAPICreateShortURL(t *testing.T) {
 	router := chi.NewRouter()
 	cfg := config.NewConfig()
-	storage, err := models.NewStorageFromFile(cfg)
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	assert.NoError(t, err)
+	storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
 
 	router.Post("/api/shorten",
 		func(w http.ResponseWriter, r *http.Request) {
-			APICreateShortURL(w, r, cfg, storage)
+			APICreateShortURL(w, r, cfg, storage, logger)
 		})
 
 	srv := httptest.NewServer(router)
@@ -228,13 +245,20 @@ func TestAPICreateShortURL(t *testing.T) {
 func TestCompressor(t *testing.T) {
 	router := chi.NewRouter()
 	cfg := config.NewConfig()
-	storage, err := models.NewStorageFromFile(cfg)
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	assert.NoError(t, err)
+	storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+		middleware.GzipMiddleware,
+	)
 
 	router.Post("/api/shorten",
-		middlewares.GzipMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			APICreateShortURL(w, r, cfg, storage)
-		}))
+		func(w http.ResponseWriter, r *http.Request) {
+			APICreateShortURL(w, r, cfg, storage, logger)
+		})
 
 	srv := httptest.NewServer(router)
 	defer srv.Close()

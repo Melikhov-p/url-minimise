@@ -47,5 +47,4 @@ func (c *Config) Build() {
 	if fileStoragePathEnv, ok = os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		c.FileStoragePath = fileStoragePathEnv
 	}
-
 }

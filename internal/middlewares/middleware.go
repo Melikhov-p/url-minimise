@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/compressor"
-	"github.com/Melikhov-p/url-minimise/internal/logger"
 	"go.uber.org/zap"
 )
 
@@ -21,18 +20,13 @@ type (
 		responseData *responseData
 	}
 
-	Middleware func(http.HandlerFunc) http.HandlerFunc
+	Middleware struct {
+		Logger *zap.Logger
+	}
 )
 
-func Conveyor(h http.HandlerFunc, middlewares ...Middleware) http.HandlerFunc {
-	for _, middleware := range middlewares {
-		h = middleware(h)
-	}
-	return h
-}
-
-func WithLogging(h http.HandlerFunc) http.HandlerFunc {
-	logFunc := func(w http.ResponseWriter, r *http.Request) {
+func (m *Middleware) WithLogging(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
 
 		responseData := &responseData{
@@ -47,7 +41,7 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 
 		duration := time.Since(startTime)
 
-		logger.Log.Info(
+		m.Logger.Info(
 			"",
 			zap.String("URI", r.RequestURI),
 			zap.String("METHOD", r.Method),
@@ -55,9 +49,7 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 			zap.Int("SIZE", responseData.size),
 			zap.Int("STATUS", responseData.status),
 		)
-	}
-
-	return logFunc
+	})
 }
 
 func (r *loggerResponseWriter) Write(b []byte) (int, error) {
@@ -71,7 +63,7 @@ func (r *loggerResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
+func (m *Middleware) GzipMiddleware(h http.Handler) http.Handler {
 	comp := func(w http.ResponseWriter, r *http.Request) {
 		ow := w
 
@@ -84,7 +76,7 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 				ow = cw
 				defer func() {
 					if err := cw.Close(); err != nil {
-						logger.Log.Error("error closing compressWriter", zap.Error(err))
+						m.Logger.Error("error closing compressWriter", zap.Error(err))
 					}
 				}()
 			}
@@ -101,7 +93,7 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 			r.Body = cr
 			defer func() {
 				if err = cr.Close(); err != nil {
-					logger.Log.Error("error closing compressReader", zap.Error(err))
+					m.Logger.Error("error closing compressReader", zap.Error(err))
 				}
 			}()
 		}
@@ -109,5 +101,5 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		h.ServeHTTP(ow, r)
 	}
 
-	return comp
+	return http.HandlerFunc(comp)
 }
