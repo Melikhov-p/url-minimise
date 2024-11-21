@@ -2,6 +2,7 @@ package compress
 
 import (
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -61,7 +62,7 @@ func NewCompressReader(r io.ReadCloser) (*CompressReader, error) {
 
 func (c *CompressReader) Read(p []byte) (int, error) {
 	n, err := c.gr.Read(p)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return n, fmt.Errorf("failed to read from gzip: %w", err)
 	}
 	return n, nil
