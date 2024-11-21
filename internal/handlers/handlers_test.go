@@ -12,7 +12,8 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
-	"github.com/Melikhov-p/url-minimise/internal/models"
+	"github.com/Melikhov-p/url-minimise/internal/repository"
+	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -59,7 +60,7 @@ func TestCreateShortURL(t *testing.T) {
 			cfg := config.NewConfig()
 			logger, err := loggerBuilder.BuildLogger("DEBUG")
 			assert.NoError(t, err)
-			storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+			storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
 			assert.NoError(t, err)
 			CreateShortURL(w, request, cfg, storage, logger)
 
@@ -108,7 +109,7 @@ func TestGetFullURL(t *testing.T) {
 			w := httptest.NewRecorder()
 			logger, err := loggerBuilder.BuildLogger("DEBUG")
 			assert.NoError(t, err)
-			storage, err := models.NewStorage(models.STORAGEFROMFILE, config.NewConfig(), logger)
+			storage, err := repository.NewStorage(storagePkg.StorageFromFile, config.NewConfig())
 			assert.NoError(t, err)
 			GetFullURL(w, request, storage, logger)
 
@@ -123,7 +124,7 @@ func TestHappyPath(t *testing.T) {
 	cfg := config.NewConfig()
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	assert.NoError(t, err)
-	storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -191,7 +192,7 @@ func TestAPICreateShortURL(t *testing.T) {
 	cfg := config.NewConfig()
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	assert.NoError(t, err)
-	storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -247,7 +248,7 @@ func TestCompressor(t *testing.T) {
 	cfg := config.NewConfig()
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	assert.NoError(t, err)
-	storage, err := models.NewStorage(models.STORAGEFROMFILE, cfg, logger)
+	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(

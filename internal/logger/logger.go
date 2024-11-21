@@ -6,11 +6,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Log будет доступен всему коду как синглтон.
-// Никакой код навыка, кроме функции BuildLogger, не должен модифицировать эту переменную.
-// По умолчанию установлен no-op-логер, который не выводит никаких сообщений.
-
-// BuildLogger инициализирует синглтон логера с необходимым уровнем логирования.
+// BuildLogger строит zap.Logger с необходимым уровнем логирования.
 func BuildLogger(level string) (*zap.Logger, error) {
 	// преобразуем текстовый уровень логирования в zap.AtomicLevel
 	lvl, err := zap.ParseAtomicLevel(level)

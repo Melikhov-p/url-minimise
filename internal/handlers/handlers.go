@@ -9,6 +9,7 @@ import (
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
+	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -17,7 +18,7 @@ func CreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
 	cfg *config.Config,
-	storage models.IStorage,
+	storage repository.IStorage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -34,14 +35,14 @@ func CreateShortURL(
 		return
 	}
 
-	newURL, err := models.NewStorageURL(string(fullURL), storage)
+	newURL, err := repository.NewStorageURL(string(fullURL), storage, cfg)
 	if err != nil {
 		logger.Error("error creating short URL", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	storage.AddURL(newURL)
-	if saver, ok := storage.(models.IStorageSaver); ok {
+	if saver, ok := storage.(repository.IStorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
@@ -63,7 +64,7 @@ func CreateShortURL(
 func GetFullURL(
 	w http.ResponseWriter,
 	r *http.Request,
-	storage models.IStorage,
+	storage repository.IStorage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -86,7 +87,7 @@ func APICreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
 	cfg *config.Config,
-	storage models.IStorage,
+	storage repository.IStorage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodPost {
 		logger.Info("wrong method used", zap.String("method", r.Method))
@@ -103,14 +104,14 @@ func APICreateShortURL(
 		return
 	}
 
-	newURL, err := models.NewStorageURL(req.URL, storage)
+	newURL, err := repository.NewStorageURL(req.URL, storage, cfg)
 	if err != nil {
 		logger.Error("error creating short URL", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	storage.AddURL(newURL)
-	if saver, ok := storage.(models.IStorageSaver); ok {
+	if saver, ok := storage.(repository.IStorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
