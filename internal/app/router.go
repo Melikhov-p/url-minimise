@@ -6,12 +6,12 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/handlers"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
-	"github.com/Melikhov-p/url-minimise/internal/models"
+	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
-func CreateRouter(cfg *config.Config, storage models.IStorage, logger *zap.Logger) chi.Router {
+func CreateRouter(cfg *config.Config, storage repository.IStorage, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
 	middleware := middlewares.Middleware{
 		Logger: logger,
