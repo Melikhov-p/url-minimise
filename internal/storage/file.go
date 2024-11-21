@@ -3,6 +3,7 @@ package storage
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -17,7 +18,7 @@ type FileStorage struct {
 
 func (s *FileStorage) Save(record *models.StorageURL) error {
 	if err := s.Encoder.Encode(record); err != nil {
-		return err
+		return fmt.Errorf("error encoding json to model %w", err)
 	}
 	return nil
 }

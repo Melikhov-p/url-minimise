@@ -17,10 +17,10 @@ const (
 )
 
 type Config struct {
+	Storage      storageConfig.Config
 	ServerAddr   string
 	ResultAddr   string
 	ShortURLSize int
-	Storage      storageConfig.Config
 }
 
 func NewConfig() *Config {

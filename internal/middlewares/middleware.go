@@ -1,11 +1,12 @@
 package middlewares
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/Melikhov-p/url-minimise/internal/compressor"
+	compress "github.com/Melikhov-p/url-minimise/internal/compressor"
 	"go.uber.org/zap"
 )
 
@@ -55,7 +56,10 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 func (r *loggerResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
-	return size, err
+	if err != nil {
+		return size, fmt.Errorf("error write from loggerResponseWriter %w", err)
+	}
+	return size, nil
 }
 
 func (r *loggerResponseWriter) WriteHeader(statusCode int) {

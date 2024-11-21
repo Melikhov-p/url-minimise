@@ -20,7 +20,7 @@ func BuildLogger(level string) (*zap.Logger, error) {
 	// создаём логер на основе конфигурации
 	zl, err := cfg.Build()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build config %v", err)
+		return nil, fmt.Errorf("failed to build config %w", err)
 	}
 	return zl, nil
 }

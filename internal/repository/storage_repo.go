@@ -28,9 +28,9 @@ func NewStorage(storageType storage.StorageType, cfg *config.Config) (IStorage, 
 			DB: map[string]*models.StorageURL{},
 		}, nil
 	case storage.StorageFromFile:
-		file, err := os.OpenFile(cfg.Storage.FileStorage.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		file, err := os.OpenFile(cfg.Storage.FileStorage.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error opening storage file %w", err)
 		}
 
 		scan := bufio.NewScanner(file)
@@ -47,7 +47,7 @@ func NewStorage(storageType storage.StorageType, cfg *config.Config) (IStorage, 
 		for scan.Scan() {
 			err = json.Unmarshal(scan.Bytes(), &element)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error unmarshal url from model %w", err)
 			}
 			store.DB[element.ShortURL] = &element
 		}
