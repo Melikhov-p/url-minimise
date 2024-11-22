@@ -11,17 +11,17 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/storage"
 )
 
-type IStorage interface {
+type Storage interface {
 	AddURL(*models.StorageURL)
 	GetFullURL(string) string
 	GetDB() map[string]*models.StorageURL
 }
 
-type IStorageSaver interface {
+type StorageSaver interface {
 	Save(*models.StorageURL) error
 }
 
-func NewStorage(storageType storage.StorageType, cfg *config.Config) (IStorage, error) {
+func NewStorage(storageType storage.StorageType, cfg *config.Config) (Storage, error) {
 	switch storageType {
 	case storage.BaseStorage:
 		return &storage.MemoryStorage{

@@ -9,7 +9,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
-func NewStorageURL(fullURL string, s IStorage, cfg *config.Config) (*models.StorageURL, error) {
+func NewStorageURL(fullURL string, s Storage, cfg *config.Config) (*models.StorageURL, error) {
 	short, err := randomString(cfg.ShortURLSize, s)
 
 	if err == nil {
@@ -21,7 +21,7 @@ func NewStorageURL(fullURL string, s IStorage, cfg *config.Config) (*models.Stor
 	return nil, err
 }
 
-func randomString(size int, s IStorage) (string, error) { // Создает рандомную строку заданного размера
+func randomString(size int, s Storage) (string, error) { // Создает рандомную строку заданного размера
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	tries := 5 // количество попыток создать уникальную строку
 
@@ -44,7 +44,7 @@ func randomString(size int, s IStorage) (string, error) { // Создает ра
 
 	return "", errors.New("reached max tries limit")
 }
-func checkDuplicates(el string, s IStorage) bool {
+func checkDuplicates(el string, s Storage) bool {
 	checked := s.GetDB()[el]
 	return checked == nil
 }

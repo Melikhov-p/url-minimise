@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func CreateRouter(cfg *config.Config, storage repository.IStorage, logger *zap.Logger) chi.Router {
+func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
 	middleware := middlewares.Middleware{
 		Logger: logger,

@@ -18,7 +18,7 @@ func CreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
 	cfg *config.Config,
-	storage repository.IStorage,
+	storage repository.Storage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -42,7 +42,7 @@ func CreateShortURL(
 		return
 	}
 	storage.AddURL(newURL)
-	if saver, ok := storage.(repository.IStorageSaver); ok {
+	if saver, ok := storage.(repository.StorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
@@ -64,7 +64,7 @@ func CreateShortURL(
 func GetFullURL(
 	w http.ResponseWriter,
 	r *http.Request,
-	storage repository.IStorage,
+	storage repository.Storage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -87,7 +87,7 @@ func APICreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
 	cfg *config.Config,
-	storage repository.IStorage,
+	storage repository.Storage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodPost {
 		logger.Info("wrong method used", zap.String("method", r.Method))
@@ -111,7 +111,7 @@ func APICreateShortURL(
 		return
 	}
 	storage.AddURL(newURL)
-	if saver, ok := storage.(repository.IStorageSaver); ok {
+	if saver, ok := storage.(repository.StorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
