@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"bytes"
+	"compress/gzip"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -8,9 +10,14 @@ import (
 	"testing"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
+	"github.com/Melikhov-p/url-minimise/internal/middlewares"
+	"github.com/Melikhov-p/url-minimise/internal/repository"
+	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreateShortURL(t *testing.T) {
@@ -50,7 +57,12 @@ func TestCreateShortURL(t *testing.T) {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
-			CreateShortURL(w, request, config.NewConfig())
+			cfg := config.NewConfig()
+			logger, err := loggerBuilder.BuildLogger("DEBUG")
+			assert.NoError(t, err)
+			storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+			assert.NoError(t, err)
+			CreateShortURL(w, request, cfg, storage, logger)
 
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedContentType, w.Header().Get(`Content-Type`))
@@ -95,7 +107,11 @@ func TestGetFullURL(t *testing.T) {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/"+test.shortURL, http.NoBody)
 			w := httptest.NewRecorder()
-			GetFullURL(w, request)
+			logger, err := loggerBuilder.BuildLogger("DEBUG")
+			assert.NoError(t, err)
+			storage, err := repository.NewStorage(storagePkg.StorageFromFile, config.NewConfig())
+			assert.NoError(t, err)
+			GetFullURL(w, request, storage, logger)
 
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedContentType, w.Header().Get(`Content-Type`))
@@ -105,12 +121,23 @@ func TestGetFullURL(t *testing.T) {
 
 func TestHappyPath(t *testing.T) {
 	router := chi.NewRouter()
+	cfg := config.NewConfig()
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
+	assert.NoError(t, err)
+	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
 
 	router.Post("/",
 		func(w http.ResponseWriter, r *http.Request) {
-			CreateShortURL(w, r, config.NewConfig())
+			CreateShortURL(w, r, cfg, storage, logger)
 		})
-	router.Get("/{id}", GetFullURL)
+	router.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
+		GetFullURL(w, r, storage, logger)
+	})
 
 	srv := httptest.NewServer(router)
 	defer srv.Close()
@@ -157,5 +184,120 @@ func TestHappyPath(t *testing.T) {
 
 		assert.Equal(t, testGet.expectedCode, getResponse.StatusCode())
 		assert.Equal(t, testGet.fullURL, getResponse.Header().Get("Location"))
+	})
+}
+
+func TestAPICreateShortURL(t *testing.T) {
+	router := chi.NewRouter()
+	cfg := config.NewConfig()
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
+	assert.NoError(t, err)
+	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
+
+	router.Post("/api/shorten",
+		func(w http.ResponseWriter, r *http.Request) {
+			APICreateShortURL(w, r, cfg, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	testCases := []struct {
+		name         string
+		request      string
+		method       string
+		expectedCode int
+	}{
+		{
+			name:         "APIHappyTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodPost,
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name:         "APIMethodNotAllowedTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodGet,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			request := resty.New().R()
+			request.URL = srv.URL + "/api/shorten"
+			request.Method = test.method
+
+			request.SetHeader("Content-Type", "application/json")
+			request.SetBody(test.request)
+
+			resp, err := request.Send()
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedCode, resp.StatusCode())
+		})
+	}
+}
+
+func TestCompressor(t *testing.T) {
+	router := chi.NewRouter()
+	cfg := config.NewConfig()
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
+	assert.NoError(t, err)
+	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+		middleware.GzipMiddleware,
+	)
+
+	router.Post("/api/shorten",
+		func(w http.ResponseWriter, r *http.Request) {
+			APICreateShortURL(w, r, cfg, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	requestBody := `{"url": "https://practicum.yandex.ru/"}`
+
+	t.Run("sends_gzip", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		zb := gzip.NewWriter(buf)
+		_, err := zb.Write([]byte(requestBody))
+		require.NoError(t, err)
+		err = zb.Close()
+		require.NoError(t, err)
+
+		request := resty.New().R()
+		request.URL = srv.URL + "/api/shorten"
+		request.Method = http.MethodPost
+		request.Body = buf
+		request.Header.Set("Content-Encoding", "gzip")
+
+		response, reqErr := request.Send()
+
+		assert.NoError(t, reqErr)
+		assert.Equal(t, http.StatusCreated, response.StatusCode())
+	})
+
+	t.Run("accepts_gzip", func(t *testing.T) {
+		buf := bytes.NewBufferString(requestBody)
+		request := resty.New().R()
+		request.URL = srv.URL + "/api/shorten"
+		request.Method = http.MethodPost
+		request.Body = buf
+		request.Header.Add("Accept-Encoding", "gzip")
+
+		resp, err := request.Send()
+
+		require.NoError(t, err)
+		require.NoError(t, err)
+		require.Equal(t, http.StatusCreated, resp.StatusCode())
 	})
 }

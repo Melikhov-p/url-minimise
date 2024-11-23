@@ -25,3 +25,6 @@ vendor/
 #golangci-lint directories
 golangci-lint/.cache
 golangci-lint/report-unformatted.json
+
+#study
+cmd/example
