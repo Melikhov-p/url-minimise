@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bufio"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,20 +10,22 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/storage"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type Storage interface {
 	AddURL(*models.StorageURL)
 	GetFullURL(string) string
-	GetDB() map[string]*models.StorageURL
+	CheckEl(string) bool
+	Ping() error
 }
 
 type StorageSaver interface {
 	Save(*models.StorageURL) error
 }
 
-func NewStorage(storageType storage.StorageType, cfg *config.Config) (Storage, error) {
-	switch storageType {
+func NewStorage(cfg *config.Config) (Storage, error) {
+	switch cfg.StorageMode {
 	case storage.BaseStorage:
 		return &storage.MemoryStorage{
 			DB: map[string]*models.StorageURL{},
@@ -53,7 +56,19 @@ func NewStorage(storageType storage.StorageType, cfg *config.Config) (Storage, e
 		}
 
 		return store, nil
+	case storage.StorageInDatabase:
+		db, err := sql.Open("pgx", cfg.Storage.Database.DSN)
+
+		if err != nil {
+			return nil, fmt.Errorf("error open conn with pgx: ERROR: %w, DSN: %s", err, cfg.Storage.Database.DSN)
+		}
+
+		store := &storage.DatabaseStorage{
+			DB: db,
+		}
+
+		return store, nil
 	}
 
-	return nil, fmt.Errorf("unknow type of store %d", storageType)
+	return nil, fmt.Errorf("unknow type of store %d", cfg.StorageMode)
 }

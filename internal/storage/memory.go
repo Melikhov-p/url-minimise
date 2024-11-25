@@ -20,6 +20,6 @@ func (s *MemoryStorage) GetFullURL(shortURL string) string {
 	return ""
 }
 
-func (s *MemoryStorage) GetDB() map[string]*models.StorageURL {
-	return s.DB
-}
+func (s *MemoryStorage) CheckEl(el string) bool { return s.DB[el] != nil }
+
+func (s *MemoryStorage) Ping() error { return nil }

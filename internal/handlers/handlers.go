@@ -10,6 +10,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
+	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -132,4 +133,25 @@ func APICreateShortURL(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func PingDatabase(
+	w http.ResponseWriter,
+	_ *http.Request,
+	cfg *config.Config,
+	storage repository.Storage,
+	logger *zap.Logger) {
+	if cfg.StorageMode != storagePkg.StorageInDatabase {
+		logger.Error("ping database with wrong storage type", zap.Any("storage type", cfg.StorageMode))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := storage.Ping(); err != nil {
+		logger.Error("database is unavailable from ping method", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
