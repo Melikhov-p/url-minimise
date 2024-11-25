@@ -227,6 +227,7 @@ linters-settings:
   govet:
     disable:
       - shadow
+      - fieldalignment
     enable-all: true
 
   grouper:

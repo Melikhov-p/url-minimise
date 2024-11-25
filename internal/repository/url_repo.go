@@ -36,15 +36,11 @@ func randomString(size int, s Storage) (string, error) { // Создает ра�
 		}
 		str := string(b)
 
-		if ok := checkDuplicates(str, s); ok {
+		if ok := s.CheckEl(str); !ok {
 			return str, nil
 		}
 		tries--
 	}
 
 	return "", errors.New("reached max tries limit")
-}
-func checkDuplicates(el string, s Storage) bool {
-	checked := s.GetDB()[el]
-	return checked == nil
 }
