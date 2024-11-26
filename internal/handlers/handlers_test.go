@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
+	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -300,4 +302,27 @@ func TestCompressor(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode())
 	})
+}
+
+func TestDatabase(t *testing.T) {
+	CFG.StorageMode = storagePkg.StorageInDatabase
+	CFG.Storage.Database.DSN = "host=localhost user=postgres password=recnbr dbname=shortener sslmode=disable"
+
+	testContext := context.Background()
+	testShortURL := "m1XbWs5eCX"
+
+	db, err := repository.NewStorage(CFG)
+	assert.NoError(t, err)
+
+	pong := db.Ping(testContext)
+	assert.NoError(t, pong)
+
+	fullURL, err := db.GetFullURL(testContext, testShortURL)
+	assert.NoError(t, err)
+	assert.Equal(t, "https://practicum.yandex.ru", fullURL)
+
+	exist := db.CheckShort(testContext, testShortURL)
+	assert.Equal(t, true, exist)
+	exist = db.CheckShort(testContext, "Iaubfkqhbi")
+	assert.Equal(t, false, exist)
 }

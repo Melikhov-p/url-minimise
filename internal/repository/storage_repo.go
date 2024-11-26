@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -13,14 +14,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+const dbTableName = "url"
+
 type Storage interface {
-	AddURL(*models.StorageURL)
-	GetFullURL(string) string
-	CheckEl(string) bool
-	Ping() error
+	AddURL(context.Context, *models.StorageURL) error
+	GetFullURL(context.Context, string) (string, error)
+	CheckShort(context.Context, string) bool
+	Ping(context.Context) error
 }
 
-type StorageSaver interface {
+type StorageSaver interface { // Для хранилищ, которым нужен отдельный метод для сохранения данных, например файл
 	Save(*models.StorageURL) error
 }
 
@@ -67,8 +70,58 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 			DB: db,
 		}
 
+		ctx := context.Background()
+		if err = store.Ping(ctx); err != nil {
+			return nil, fmt.Errorf("error ping database %w", err)
+		}
+
+		ok, err := dbCheckTable(ctx, store.DB, dbTableName)
+		if err != nil {
+			return nil, fmt.Errorf("error check table in database %w", err)
+		}
+
+		if !ok {
+			if err = createTable(ctx, store.DB); err != nil {
+				return nil, fmt.Errorf("error creating table %w", err)
+			}
+		}
+
 		return store, nil
 	}
 
 	return nil, fmt.Errorf("unknow type of store %d", cfg.StorageMode)
+}
+
+func dbCheckTable(ctx context.Context, db *sql.DB, tableName string) (bool, error) {
+	query := `
+        SELECT EXISTS (
+            SELECT FROM
+                information_schema.tables
+            WHERE
+                table_schema = 'public' AND
+                table_name = $1
+        )
+    `
+	var exist bool
+	rows := db.QueryRowContext(ctx, query, tableName)
+
+	if err := rows.Scan(&exist); err != nil {
+		return false, fmt.Errorf("error scanning row from database %w", err)
+	}
+	return exist, nil
+}
+
+func createTable(ctx context.Context, db *sql.DB) error {
+	query := `
+		CREATE TABLE URL (
+			short_url VARCHAR(255) UNIQUE NOT NULL,
+			original_url TEXT NOT NULL,
+			uuid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL
+		);`
+
+	if _, err := db.ExecContext(ctx, query); err != nil {
+		return fmt.Errorf("error exec context from database %w", err)
+	}
+
+	return nil
 }

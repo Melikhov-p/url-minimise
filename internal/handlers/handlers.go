@@ -35,14 +35,20 @@ func CreateShortURL(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	ctx := r.Context()
 
-	newURL, err := repository.NewStorageURL(string(fullURL), storage, cfg)
+	newURL, err := repository.NewStorageURL(ctx, string(fullURL), storage, cfg)
 	if err != nil {
 		logger.Error("error creating short URL", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	storage.AddURL(newURL)
+
+	if err = storage.AddURL(ctx, newURL); err != nil {
+		logger.Error("error adding new url", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	if saver, ok := storage.(repository.StorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
@@ -72,10 +78,12 @@ func GetFullURL(
 		logger.Info("unresolved method", zap.String("method", r.Method))
 		return
 	}
+	ctx := r.Context()
+
 	id := chi.URLParam(r, "id")
 
-	matchURL := storage.GetFullURL(id)
-	if matchURL == "" {
+	matchURL, err := storage.GetFullURL(ctx, id)
+	if err != nil {
 		logger.Info("not found full URL by short", zap.String("shortURL", id))
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -96,6 +104,8 @@ func APICreateShortURL(
 		return
 	}
 
+	ctx := r.Context()
+
 	logger.Debug("start decoding request")
 	var req models.Request
 	dec := json.NewDecoder(r.Body)
@@ -105,13 +115,18 @@ func APICreateShortURL(
 		return
 	}
 
-	newURL, err := repository.NewStorageURL(req.URL, storage, cfg)
+	newURL, err := repository.NewStorageURL(ctx, req.URL, storage, cfg)
 	if err != nil {
 		logger.Error("error creating short URL", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	storage.AddURL(newURL)
+
+	if err = storage.AddURL(ctx, newURL); err != nil {
+		logger.Error("error adding new url", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	if saver, ok := storage.(repository.StorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
@@ -137,7 +152,7 @@ func APICreateShortURL(
 
 func PingDatabase(
 	w http.ResponseWriter,
-	_ *http.Request,
+	r *http.Request,
 	cfg *config.Config,
 	storage repository.Storage,
 	logger *zap.Logger) {
@@ -146,8 +161,9 @@ func PingDatabase(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	ctx := r.Context()
 
-	if err := storage.Ping(); err != nil {
+	if err := storage.Ping(ctx); err != nil {
 		logger.Error("database is unavailable from ping method", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return

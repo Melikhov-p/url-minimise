@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"time"
@@ -9,8 +10,8 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
-func NewStorageURL(fullURL string, s Storage, cfg *config.Config) (*models.StorageURL, error) {
-	short, err := randomString(cfg.ShortURLSize, s)
+func NewStorageURL(ctx context.Context, fullURL string, s Storage, cfg *config.Config) (*models.StorageURL, error) {
+	short, err := randomString(ctx, cfg.ShortURLSize, s)
 
 	if err == nil {
 		return &models.StorageURL{
@@ -21,7 +22,8 @@ func NewStorageURL(fullURL string, s Storage, cfg *config.Config) (*models.Stora
 	return nil, err
 }
 
-func randomString(size int, s Storage) (string, error) { // Создает рандомную строку заданного размера
+// Создает рандомную строку заданного размера.
+func randomString(ctx context.Context, size int, s Storage) (string, error) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	tries := 5 // количество попыток создать уникальную строку
 
@@ -36,7 +38,7 @@ func randomString(size int, s Storage) (string, error) { // Создает ра�
 		}
 		str := string(b)
 
-		if ok := s.CheckEl(str); !ok {
+		if ok := s.CheckShort(ctx, str); !ok {
 			return str, nil
 		}
 		tries--

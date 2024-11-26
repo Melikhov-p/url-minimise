@@ -1,5 +1,7 @@
 package storage
 
+import "errors"
+
 type StorageType int
 
 const (
@@ -7,3 +9,5 @@ const (
 	StorageFromFile
 	StorageInDatabase
 )
+
+var errNotFound error = errors.New("not found full url")
