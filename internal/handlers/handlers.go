@@ -189,6 +189,12 @@ func APICreateBatchURLs(
 		})
 	}
 
+	if err = storage.AddURLs(r.Context(), newURLs); err != nil {
+		logger.Error("error adding new urls to database", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
