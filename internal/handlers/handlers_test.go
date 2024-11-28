@@ -301,3 +301,78 @@ func TestCompressor(t *testing.T) {
 		require.Equal(t, http.StatusCreated, resp.StatusCode())
 	})
 }
+
+func TestAPICreateBatchShortURL(t *testing.T) {
+	router := chi.NewRouter()
+
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
+	assert.NoError(t, err)
+	storage, err := repository.NewStorage(CFG)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
+
+	router.Post("/api/shorten/batch",
+		func(w http.ResponseWriter, r *http.Request) {
+			APICreateBatchURLs(w, r, CFG, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	testCases := []struct {
+		name         string
+		request      string
+		method       string
+		expectedCode int
+	}{
+		{
+			name: "APIHappyTest",
+			request: `[
+								{
+									"correlation_id": "1",
+									"original_url": "url1"
+								},
+								{
+									"correlation_id": "2",
+									"original_url": "url2"
+								},
+								{
+									"correlation_id": "3",
+									"original_url": "url31"
+								}
+							] `,
+			method:       http.MethodPost,
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name:         "APIMethodNotAllowedTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodGet,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "APIInternalError",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodPost,
+			expectedCode: http.StatusInternalServerError,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			request := resty.New().R()
+			request.URL = srv.URL + "/api/shorten/batch"
+			request.Method = test.method
+
+			request.SetHeader("Content-Type", "application/json")
+			request.SetBody(test.request)
+
+			resp, err := request.Send()
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedCode, resp.StatusCode())
+		})
+	}
+}

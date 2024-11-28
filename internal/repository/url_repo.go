@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -20,6 +21,27 @@ func NewStorageURL(ctx context.Context, fullURL string, s Storage, cfg *config.C
 		}, nil
 	}
 	return nil, err
+}
+
+func NewStorageMultiURL(
+	ctx context.Context,
+	fullURLs []string,
+	s Storage,
+	cfg *config.Config) ([]*models.StorageURL, error) {
+	newURLs := make([]*models.StorageURL, 0, len(fullURLs))
+
+	for _, url := range fullURLs {
+		short, err := randomString(ctx, cfg.ShortURLSize, s)
+		if err != nil {
+			return nil, fmt.Errorf("error creating random string %w", err)
+		}
+		newURLs = append(newURLs, &models.StorageURL{
+			ShortURL:    short,
+			OriginalURL: url,
+		})
+	}
+
+	return newURLs, nil
 }
 
 // Создает рандомную строку заданного размера.

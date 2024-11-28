@@ -18,6 +18,7 @@ const dbTableName = "url"
 
 type Storage interface {
 	AddURL(context.Context, *models.StorageURL) error
+	AddURLs(context.Context, []*models.StorageURL) error
 	GetFullURL(context.Context, string) (string, error)
 	CheckShort(context.Context, string) bool
 	Ping(context.Context) error

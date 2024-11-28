@@ -150,6 +150,55 @@ func APICreateShortURL(
 	}
 }
 
+func APICreateBatchURLs(
+	w http.ResponseWriter,
+	r *http.Request,
+	cfg *config.Config,
+	storage repository.Storage,
+	logger *zap.Logger) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	dec := json.NewDecoder(r.Body)
+	var req models.BatchRequest
+	if err := dec.Decode(&req.BatchURLs); err != nil {
+		logger.Error("error decoding request to request model", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	originalURLs := make([]string, 0, len(req.BatchURLs))
+	for _, url := range req.BatchURLs {
+		originalURLs = append(originalURLs, url.OriginalURL)
+	}
+
+	newURLs, err := repository.NewStorageMultiURL(r.Context(), originalURLs, storage, cfg)
+	if err != nil {
+		logger.Error("error getting new storage for multi urls", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var res models.BatchResponse
+	for i, url := range newURLs {
+		res.BatchURLs = append(res.BatchURLs, models.BatchURLResponse{
+			ShortURL:      url.ShortURL,
+			CorrelationID: req.BatchURLs[i].CorrelationID,
+		})
+	}
+
+	enc := json.NewEncoder(w)
+	w.WriteHeader(http.StatusCreated)
+
+	if err = enc.Encode(&res.BatchURLs); err != nil {
+		logger.Error("error encoding batch response to json", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
 func PingDatabase(
 	w http.ResponseWriter,
 	r *http.Request,

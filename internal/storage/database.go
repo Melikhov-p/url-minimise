@@ -32,6 +32,39 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 	return nil
 }
 
+func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.StorageURL) error {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("error begin transaction %w", err)
+	}
+	// если Commit будет раньше, то откат проигнорируется
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	preparedQuery, err := tx.PrepareContext(ctx, `
+		INSERT INTO URL (short_url, original_url)
+        VALUES ($1, $2)
+	`)
+	if err != nil {
+		return fmt.Errorf("error getting prepared query %w", err)
+	}
+	defer func() {
+		_ = preparedQuery.Close()
+	}()
+
+	for _, url := range newURLs {
+		if _, err = preparedQuery.ExecContext(ctx, url.ShortURL, url.OriginalURL); err != nil {
+			return fmt.Errorf("error executing context for query in addURLs %w", err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("error commiting changes in database %w", err)
+	}
+
+	return nil
+}
+
 func (db *DatabaseStorage) GetFullURL(ctx context.Context, shortURL string) (string, error) {
 	query := `
 		SELECT original_url FROM URL WHERE short_url = $1

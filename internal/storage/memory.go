@@ -15,6 +15,14 @@ func (s *MemoryStorage) AddURL(_ context.Context, newURL *models.StorageURL) err
 	return nil
 }
 
+func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL) error {
+	for _, url := range newURLs {
+		s.DB[url.ShortURL] = url
+	}
+
+	return nil
+}
+
 func (s *MemoryStorage) GetFullURL(_ context.Context, shortURL string) (string, error) {
 	searchedElem := s.DB[shortURL]
 	if searchedElem != nil {
