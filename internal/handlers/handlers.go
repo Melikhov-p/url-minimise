@@ -184,7 +184,7 @@ func APICreateBatchURLs(
 	var res models.BatchResponse
 	for i, url := range newURLs {
 		res.BatchURLs = append(res.BatchURLs, models.BatchURLResponse{
-			ShortURL:      url.ShortURL,
+			ShortURL:      cfg.ResultAddr + "/" + url.ShortURL,
 			CorrelationID: req.BatchURLs[i].CorrelationID,
 		})
 	}
