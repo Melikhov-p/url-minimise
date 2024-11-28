@@ -45,6 +45,11 @@ func CreateShortURL(
 	}
 
 	if err = storage.AddURL(ctx, newURL); err != nil {
+		if errors.Is(err, storagePkg.ErrURLExist) {
+			logger.Info("original URL already exist in storage", zap.String("OriginalURL", newURL.OriginalURL))
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
 		logger.Error("error adding new url", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -123,6 +128,11 @@ func APICreateShortURL(
 	}
 
 	if err = storage.AddURL(ctx, newURL); err != nil {
+		if errors.Is(err, storagePkg.ErrURLExist) {
+			logger.Info("original URL already exist in storage", zap.String("OriginalURL", newURL.OriginalURL))
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
 		logger.Error("error adding new url", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return

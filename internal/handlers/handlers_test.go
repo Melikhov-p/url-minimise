@@ -35,6 +35,12 @@ func TestCreateShortURL(t *testing.T) {
 			body:                `https://github.com/Melikhov-p/url-minimise/pull/5`,
 		},
 		{
+			method:              http.MethodPost,
+			expectedCode:        http.StatusConflict,
+			expectedContentType: ``,
+			body:                `https://github.com/Melikhov-p/url-minimise/pull/5`,
+		},
+		{
 			method:              http.MethodGet,
 			expectedCode:        http.StatusMethodNotAllowed,
 			expectedContentType: ``,
@@ -148,7 +154,7 @@ func TestHappyPath(t *testing.T) {
 		expectedCode int
 	}{
 		method:       http.MethodPost,
-		fullURL:      "https://github.com/Melikhov-p/url-minimise/pull/5",
+		fullURL:      "https://github.com/Melikhov-p",
 		expectedCode: http.StatusCreated}
 	testGet := struct {
 		method       string
@@ -158,7 +164,7 @@ func TestHappyPath(t *testing.T) {
 	}{
 		method:       http.MethodGet,
 		shortURL:     "",
-		fullURL:      "https://github.com/Melikhov-p/url-minimise/pull/5",
+		fullURL:      "https://github.com/Melikhov-p",
 		expectedCode: http.StatusTemporaryRedirect,
 	}
 
@@ -220,6 +226,12 @@ func TestAPICreateShortURL(t *testing.T) {
 			expectedCode: http.StatusCreated,
 		},
 		{
+			name:         "APIHappyTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodPost,
+			expectedCode: http.StatusConflict,
+		},
+		{
 			name:         "APIMethodNotAllowedTest",
 			request:      `{"url":"https://practicum.yandex.ru"}`,
 			method:       http.MethodGet,
@@ -264,9 +276,8 @@ func TestCompressor(t *testing.T) {
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	requestBody := `{"url": "https://practicum.yandex.ru/"}`
-
 	t.Run("sends_gzip", func(t *testing.T) {
+		requestBody := `{"url": "https://practicum.yandex.ru/"}`
 		buf := bytes.NewBuffer(nil)
 		zb := gzip.NewWriter(buf)
 		_, err := zb.Write([]byte(requestBody))
@@ -287,6 +298,7 @@ func TestCompressor(t *testing.T) {
 	})
 
 	t.Run("accepts_gzip", func(t *testing.T) {
+		requestBody := `{"url": "https://practicum.yandex.ru/123"}`
 		buf := bytes.NewBufferString(requestBody)
 		request := resty.New().R()
 		request.URL = srv.URL + "/api/shorten"
@@ -354,7 +366,7 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 			expectedCode: http.StatusMethodNotAllowed,
 		},
 		{
-			name:         "APIInternalError",
+			name:         "APIConflict",
 			request:      `{"url":"https://practicum.yandex.ru"}`,
 			method:       http.MethodPost,
 			expectedCode: http.StatusInternalServerError,

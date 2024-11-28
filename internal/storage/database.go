@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -26,6 +27,9 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 
 	_, err := db.DB.ExecContext(ctx, query, newURL.ShortURL, newURL.OriginalURL)
 	if err != nil {
+		if strings.Contains(err.Error(), UniqueViolationCode) {
+			return ErrURLExist
+		}
 		return fmt.Errorf("error exec context from database in addurl %w", err)
 	}
 
@@ -42,10 +46,13 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	}()
 
 	preparedQuery, err := tx.PrepareContext(ctx, `
-		INSERT INTO url (short_url, original_url) VALUES ($1, $2)
+		INSERT INTO url (short_url, original_url) VALUES ($1, $2) ON CONFLICT (original_url)
 	`)
 	if err != nil {
-		return fmt.Errorf("error creating prepared query %w", err)
+		if strings.Contains(err.Error(), UniqueViolationCode) {
+			return ErrURLExist
+		}
+		return fmt.Errorf("error creating prepared query in addURLs %w", err)
 	}
 	defer func() {
 		_ = preparedQuery.Close()

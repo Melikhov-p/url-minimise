@@ -116,7 +116,7 @@ func createTable(ctx context.Context, db *sql.DB) error {
 	query := `
 		CREATE TABLE URL (
 			short_url VARCHAR(255) UNIQUE NOT NULL,
-			original_url TEXT NOT NULL,
+			original_url TEXT NOT NULL UNIQUE,
 			uuid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL
 		);`
 
