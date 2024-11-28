@@ -140,8 +140,8 @@ func APICreateShortURL(
 		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err = enc.Encode(res); err != nil && !errors.Is(err, io.EOF) {
 		logger.Error("error encoding response", zap.Error(err))
@@ -190,8 +190,8 @@ func APICreateBatchURLs(
 	}
 
 	enc := json.NewEncoder(w)
-	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 
 	if err = enc.Encode(&res.BatchURLs); err != nil {
 		logger.Error("error encoding batch response to json", zap.Error(err))
