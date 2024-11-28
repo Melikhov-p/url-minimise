@@ -19,7 +19,7 @@ const dbTimeout = 15 * time.Second
 func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL) error {
 	query := `
 		INSERT INTO URL (short_url, original_url)
-        VALUES ($1, $2)
+        VALUES ($1, $2) ON CONFLICT (original_url)
 	`
 
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
