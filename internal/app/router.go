@@ -31,13 +31,24 @@ func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Lo
 	createURLAPIWrapper := func(w http.ResponseWriter, r *http.Request) {
 		handlers.APICreateShortURL(w, r, cfg, storage, logger)
 	}
+	createBatchURLAPIWrapper := func(w http.ResponseWriter, r *http.Request) {
+		handlers.APICreateBatchURLs(w, r, cfg, storage, logger)
+	}
+	pingDBWrapper := func(w http.ResponseWriter, r *http.Request) {
+		handlers.PingDatabase(w, r, cfg, storage, logger)
+	}
+
+	router.Get("/ping", pingDBWrapper)
 
 	router.Post("/", createURLWrapper)
 
 	router.Get("/{id}", getURLWrapper)
 
 	router.Route("/api", func(r chi.Router) {
-		r.Post("/shorten", createURLAPIWrapper)
+		r.Route("/shorten", func(r chi.Router) {
+			r.Post("/", createURLAPIWrapper)
+			r.Post("/batch", createBatchURLAPIWrapper)
+		})
 	})
 
 	return router
