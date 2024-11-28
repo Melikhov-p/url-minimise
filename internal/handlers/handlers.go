@@ -191,6 +191,7 @@ func APICreateBatchURLs(
 
 	enc := json.NewEncoder(w)
 	w.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
 
 	if err = enc.Encode(&res.BatchURLs); err != nil {
 		logger.Error("error encoding batch response to json", zap.Error(err))
