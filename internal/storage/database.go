@@ -19,7 +19,7 @@ const dbTimeout = 15 * time.Second
 func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL) error {
 	query := `
 		INSERT INTO URL (short_url, original_url)
-        VALUES ($1, $2) ON CONFLICT (original_url)
+        VALUES ($1, $2)
 	`
 
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
@@ -46,7 +46,7 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	}()
 
 	preparedQuery, err := tx.PrepareContext(ctx, `
-		INSERT INTO url (short_url, original_url) VALUES ($1, $2) ON CONFLICT (original_url)
+		INSERT INTO url (short_url, original_url) VALUES ($1, $2)
 	`)
 	if err != nil {
 		if strings.Contains(err.Error(), UniqueViolationCode) {
