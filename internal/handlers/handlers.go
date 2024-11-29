@@ -47,8 +47,23 @@ func CreateShortURL(
 	if err = storage.AddURL(ctx, newURL); err != nil {
 		if errors.Is(err, storagePkg.ErrURLExist) {
 			logger.Info("original URL already exist in storage", zap.String("OriginalURL", newURL.OriginalURL))
-			w.WriteHeader(http.StatusConflict)
-			return
+
+			if existShort, err := storage.GetShortURL(r.Context(), newURL.OriginalURL); err == nil {
+				logger.Info("short url found in storage", zap.String("shortURL", existShort))
+				w.WriteHeader(http.StatusConflict)
+				if _, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", existShort); err != nil {
+					logger.Error("error write response to io.Writer", zap.Error(err))
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				return
+			} else {
+				logger.Error("short URL dont found for existing original URL",
+					zap.String("Original", newURL.OriginalURL),
+					zap.Error(err))
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 		logger.Error("error adding new url", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -127,11 +142,31 @@ func APICreateShortURL(
 		return
 	}
 
+	enc := json.NewEncoder(w)
+	w.Header().Set("Content-Type", "application/json")
+	res := models.Response{
+		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
+	}
+
 	if err = storage.AddURL(ctx, newURL); err != nil {
 		if errors.Is(err, storagePkg.ErrURLExist) {
 			logger.Info("original URL already exist in storage", zap.String("OriginalURL", newURL.OriginalURL))
-			w.WriteHeader(http.StatusConflict)
-			return
+
+			if existShort, err := storage.GetShortURL(r.Context(), newURL.OriginalURL); err == nil {
+				logger.Info("short url found in storage", zap.String("shortURL", existShort))
+				w.WriteHeader(http.StatusConflict)
+				if encErr := enc.Encode(res); encErr != nil {
+					logger.Error("error encoding response", zap.Error(err))
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+			} else {
+				logger.Error("short URL dont found for existing original URL",
+					zap.String("Original", newURL.OriginalURL),
+					zap.Error(err))
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
 		}
 		logger.Error("error adding new url", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -145,13 +180,6 @@ func APICreateShortURL(
 		}
 	}
 
-	logger.Debug("start encoding response")
-	res := models.Response{
-		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
-	}
-
-	enc := json.NewEncoder(w)
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err = enc.Encode(res); err != nil && !errors.Is(err, io.EOF) {
 		logger.Error("error encoding response", zap.Error(err))

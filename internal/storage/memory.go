@@ -18,7 +18,7 @@ func (s *MemoryStorage) AddURL(ctx context.Context, newURL *models.StorageURL) e
 	return nil
 }
 
-func (s *MemoryStorage) AddURLs(ctx context.Context, newURLs []*models.StorageURL) error {
+func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL) error {
 	for _, url := range newURLs {
 		s.DB[url.ShortURL] = url
 	}
@@ -26,12 +26,25 @@ func (s *MemoryStorage) AddURLs(ctx context.Context, newURLs []*models.StorageUR
 	return nil
 }
 
+func (s *MemoryStorage) GetShortURL(_ context.Context, fullURL string) (string, error) {
+	var short string
+
+	for _, url := range s.DB {
+		if url.OriginalURL == fullURL {
+			short = url.ShortURL
+			return short, nil
+		}
+	}
+
+	return "", ErrNotFound
+}
+
 func (s *MemoryStorage) GetFullURL(_ context.Context, shortURL string) (string, error) {
 	searchedElem := s.DB[shortURL]
 	if searchedElem != nil {
 		return searchedElem.OriginalURL, nil
 	}
-	return "", errNotFound
+	return "", ErrNotFound
 }
 
 func (s *MemoryStorage) CheckShort(_ context.Context, short string) bool { return s.DB[short] != nil }
