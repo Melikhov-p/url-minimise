@@ -144,9 +144,6 @@ func APICreateShortURL(
 
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
-	res := models.Response{
-		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
-	}
 
 	if err = storage.AddURL(ctx, newURL); err != nil {
 		if errors.Is(err, storagePkg.ErrURLExist) {
@@ -154,12 +151,17 @@ func APICreateShortURL(
 
 			if existShort, err := storage.GetShortURL(r.Context(), newURL.OriginalURL); err == nil {
 				logger.Info("short url found in storage", zap.String("shortURL", existShort))
+
+				res := models.Response{
+					ResultURL: cfg.ResultAddr + "/" + existShort,
+				}
 				w.WriteHeader(http.StatusConflict)
 				if encErr := enc.Encode(res); encErr != nil {
 					logger.Error("error encoding response", zap.Error(err))
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
+				return
 			} else {
 				logger.Error("short URL dont found for existing original URL",
 					zap.String("Original", newURL.OriginalURL),
@@ -180,6 +182,9 @@ func APICreateShortURL(
 		}
 	}
 
+	res := models.Response{
+		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
+	}
 	w.WriteHeader(http.StatusCreated)
 	if err = enc.Encode(res); err != nil && !errors.Is(err, io.EOF) {
 		logger.Error("error encoding response", zap.Error(err))
