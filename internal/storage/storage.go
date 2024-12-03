@@ -13,4 +13,15 @@ const (
 const UniqueViolationCode = "23505"
 
 var ErrNotFound error = errors.New("not found full url")
-var ErrURLExist error = errors.New("url already exist in storage")
+
+var ErrOriginalURLExist error = errors.New("original url already exist in storage")
+
+var errOriginalURLExist dbError = dbError{
+	Field: "url_original_url",
+	Code:  UniqueViolationCode,
+}
+
+type dbError struct {
+	Field string
+	Code  string
+}

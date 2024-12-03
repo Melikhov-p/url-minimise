@@ -16,24 +16,47 @@ type DatabaseStorage struct {
 
 const dbTimeout = 15 * time.Second
 
-func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL) error {
-	query := `
-		INSERT INTO URL (short_url, original_url)
-        VALUES ($1, $2)
-	`
-
+func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL) (string, error) {
+	// Add new url in storage, return short url and error.
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
 
-	_, err := db.DB.ExecContext(ctx, query, newURL.ShortURL, newURL.OriginalURL)
+	tx, err := db.DB.Begin()
 	if err != nil {
-		if strings.Contains(err.Error(), UniqueViolationCode) {
-			return ErrURLExist
-		}
-		return fmt.Errorf("error exec context from database in addurl %w", err)
+		return "", fmt.Errorf("error starting transaction %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	preparedInsert, err := tx.PrepareContext(ctx, `
+		INSERT INTO URL (short_url, original_url)
+        VALUES ($1, $2)
+	`)
+	if err != nil {
+		return "", fmt.Errorf("error creating prepared insert query %w", err)
 	}
 
-	return nil
+	defer func() {
+		_ = preparedInsert.Close()
+	}()
+
+	_, err = preparedInsert.ExecContext(ctx, newURL.ShortURL, newURL.OriginalURL)
+	if err != nil {
+		if strings.Contains(err.Error(), UniqueViolationCode) {
+			if strings.Contains(err.Error(), errOriginalURLExist.Field) {
+				shortURL, err := db.GetShortURL(ctx, tx, newURL.OriginalURL)
+				if err != nil {
+					return "", fmt.Errorf("error getting existing short url %w", err)
+				}
+				return shortURL, fmt.Errorf("%w : %s", ErrOriginalURLExist, newURL.OriginalURL)
+			}
+		}
+		return "", fmt.Errorf("error exec context from database in addurl %w", err)
+	}
+
+	_ = tx.Commit()
+	return newURL.ShortURL, nil
 }
 
 func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.StorageURL) error {
@@ -50,7 +73,9 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	`)
 	if err != nil {
 		if strings.Contains(err.Error(), UniqueViolationCode) {
-			return ErrURLExist
+			if strings.Contains(err.Error(), errOriginalURLExist.Field) {
+				return ErrOriginalURLExist
+			}
 		}
 		return fmt.Errorf("error creating prepared query in addURLs %w", err)
 	}
@@ -90,7 +115,7 @@ func (db *DatabaseStorage) GetFullURL(ctx context.Context, shortURL string) (str
 	return fullURL, nil
 }
 
-func (db *DatabaseStorage) GetShortURL(ctx context.Context, fullURL string) (string, error) {
+func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL string) (string, error) {
 	query := `SELECT short_url FROM url WHERE original_url = $1`
 
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)

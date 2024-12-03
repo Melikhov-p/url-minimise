@@ -10,6 +10,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
+	"github.com/Melikhov-p/url-minimise/internal/service"
 	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -25,50 +26,29 @@ func CreateShortURL(
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	fullURL, err := io.ReadAll(r.Body)
+
+	originalURL, err := io.ReadAll(r.Body)
+	if err != nil {
+		logger.Error("error reading body from text/plain", zap.Error(err))
+	}
+
 	defer func() {
 		_ = r.Body.Close()
 	}()
 
-	if err != nil {
-		logger.Error("error read body from text", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 	ctx := r.Context()
 
-	newURL, err := repository.NewStorageURL(ctx, string(fullURL), storage, cfg)
+	newURL, err := service.AddURL(ctx, storage, logger, string(originalURL), cfg)
 	if err != nil {
-		logger.Error("error creating short URL", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if err = storage.AddURL(ctx, newURL); err != nil {
-		if errors.Is(err, storagePkg.ErrURLExist) {
-			logger.Info("original URL already exist in storage", zap.String("OriginalURL", newURL.OriginalURL))
-
-			if existShort, err := storage.GetShortURL(r.Context(), newURL.OriginalURL); err == nil {
-				logger.Info("short url found in storage", zap.String("shortURL", existShort))
-				w.WriteHeader(http.StatusConflict)
-				if _, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", existShort); err != nil {
-					logger.Error("error write response to io.Writer", zap.Error(err))
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				return
-			} else {
-				logger.Error("short URL dont found for existing original URL",
-					zap.String("Original", newURL.OriginalURL),
-					zap.Error(err))
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
+		if errors.Is(err, storagePkg.ErrOriginalURLExist) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error adding new URL", zap.Error(err))
+			return
 		}
-		logger.Error("error adding new url", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
+
 	if saver, ok := storage.(repository.StorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
@@ -91,11 +71,11 @@ func CreateShortURL(
 func GetFullURL(
 	w http.ResponseWriter,
 	r *http.Request,
+	_ *config.Config,
 	storage repository.Storage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		logger.Info("unresolved method", zap.String("method", r.Method))
 		return
 	}
 	ctx := r.Context()
@@ -119,7 +99,6 @@ func APICreateShortURL(
 	storage repository.Storage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodPost {
-		logger.Info("wrong method used", zap.String("method", r.Method))
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -135,45 +114,20 @@ func APICreateShortURL(
 		return
 	}
 
-	newURL, err := repository.NewStorageURL(ctx, req.URL, storage, cfg)
-	if err != nil {
-		logger.Error("error creating short URL", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
 
-	if err = storage.AddURL(ctx, newURL); err != nil {
-		if errors.Is(err, storagePkg.ErrURLExist) {
-			logger.Info("original URL already exist in storage", zap.String("OriginalURL", newURL.OriginalURL))
-
-			if existShort, err := storage.GetShortURL(r.Context(), newURL.OriginalURL); err == nil {
-				logger.Info("short url found in storage", zap.String("shortURL", existShort))
-
-				res := models.Response{
-					ResultURL: cfg.ResultAddr + "/" + existShort,
-				}
-				w.WriteHeader(http.StatusConflict)
-				if encErr := enc.Encode(res); encErr != nil {
-					logger.Error("error encoding response", zap.Error(err))
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				return
-			} else {
-				logger.Error("short URL dont found for existing original URL",
-					zap.String("Original", newURL.OriginalURL),
-					zap.Error(err))
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
+	newURL, err := service.AddURL(ctx, storage, logger, req.URL, cfg)
+	if err != nil {
+		if errors.Is(err, storagePkg.ErrOriginalURLExist) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error adding new URL", zap.Error(err))
+			return
 		}
-		logger.Error("error adding new url", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
 	}
+
 	if saver, ok := storage.(repository.StorageSaver); ok {
 		if err = saver.Save(newURL); err != nil {
 			logger.Error("error saving new URL %v", zap.Error(err))
@@ -198,17 +152,17 @@ func APICreateBatchURLs(
 	r *http.Request,
 	cfg *config.Config,
 	storage repository.Storage,
-	logger *zap.Logger) {
+	logger *zap.Logger,
+) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-
 	dec := json.NewDecoder(r.Body)
 	var req models.BatchRequest
 	if err := dec.Decode(&req.BatchURLs); err != nil {
 		logger.Error("error decoding request to request model", zap.Error(err))
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -252,14 +206,10 @@ func APICreateBatchURLs(
 func PingDatabase(
 	w http.ResponseWriter,
 	r *http.Request,
-	cfg *config.Config,
+	_ *config.Config,
 	storage repository.Storage,
-	logger *zap.Logger) {
-	if cfg.StorageMode != storagePkg.StorageInDatabase {
-		logger.Error("ping database with wrong storage type", zap.Any("storage type", cfg.StorageMode))
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	logger *zap.Logger,
+) {
 	ctx := r.Context()
 
 	if err := storage.Ping(ctx); err != nil {

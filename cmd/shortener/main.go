@@ -12,13 +12,12 @@ import (
 )
 
 func main() {
-	cfg := config.NewConfig() // Возвращает конфиг со значениями по-умолчанию
-	cfg.Build()               // Забирает значения флагов и переменных окружения
-
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	if err != nil {
 		log.Fatalf("cannot run logger: %v", err)
 	}
+
+	cfg := config.NewConfig(logger, false) // Возвращает конфиг с прочитанными флагами и энвами
 
 	store, err := repository.NewStorage(cfg)
 	if err != nil {

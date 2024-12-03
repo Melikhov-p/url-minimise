@@ -12,15 +12,14 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
-const dbTableName = "url"
-
 type Storage interface {
-	AddURL(context.Context, *models.StorageURL) error
+	AddURL(context.Context, *models.StorageURL) (string, error)
 	AddURLs(context.Context, []*models.StorageURL) error
 	GetFullURL(context.Context, string) (string, error)
-	GetShortURL(context.Context, string) (string, error)
+	GetShortURL(context.Context, *sql.Tx, string) (string, error)
 	CheckShort(context.Context, string) bool
 	Ping(context.Context) error
 }
@@ -77,15 +76,8 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 			return nil, fmt.Errorf("error ping database %w", err)
 		}
 
-		ok, err := dbCheckTable(ctx, store.DB, dbTableName)
-		if err != nil {
-			return nil, fmt.Errorf("error check table in database %w", err)
-		}
-
-		if !ok {
-			if err = createTable(ctx, store.DB); err != nil {
-				return nil, fmt.Errorf("error creating table %w", err)
-			}
+		if err = makeMigrations(cfg, store.DB); err != nil {
+			return nil, fmt.Errorf("error making migrations %w", err)
 		}
 
 		return store, nil
@@ -94,35 +86,15 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 	return nil, fmt.Errorf("unknow type of store %d", cfg.StorageMode)
 }
 
-func dbCheckTable(ctx context.Context, db *sql.DB, tableName string) (bool, error) {
-	query := `
-        SELECT EXISTS (
-            SELECT FROM
-                information_schema.tables
-            WHERE
-                table_schema = 'public' AND
-                table_name = $1
-        )
-    `
-	var exist bool
-	rows := db.QueryRowContext(ctx, query, tableName)
+func makeMigrations(cfg *config.Config, db *sql.DB) error {
+	var err error
 
-	if err := rows.Scan(&exist); err != nil {
-		return false, fmt.Errorf("error scanning row from database %w", err)
+	if err = goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("error goose set dialect %w", err)
 	}
-	return exist, nil
-}
 
-func createTable(ctx context.Context, db *sql.DB) error {
-	query := `
-		CREATE TABLE URL (
-			short_url VARCHAR(255) UNIQUE NOT NULL,
-			original_url TEXT NOT NULL UNIQUE,
-			uuid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL
-		);`
-
-	if _, err := db.ExecContext(ctx, query); err != nil {
-		return fmt.Errorf("error exec context from database %w", err)
+	if err = goose.Up(db, cfg.Storage.Database.MigrationsPath); err != nil {
+		return fmt.Errorf("error up migrations %w", err)
 	}
 
 	return nil

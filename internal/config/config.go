@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"log"
 	"os"
 
 	storageConfig "github.com/Melikhov-p/url-minimise/internal/repository/config"
@@ -11,12 +10,14 @@ import (
 	memoryConfig "github.com/Melikhov-p/url-minimise/internal/repository/memory/config"
 	"github.com/Melikhov-p/url-minimise/internal/storage"
 	_ "github.com/jackc/pgx/v5"
+	"go.uber.org/zap"
 )
 
 const (
 	defaultSrvAddr         = "localhost:8080"
 	defaultResAddr         = "http://localhost:8080"
 	defaultFileStoragePath = "storage.txt"
+	defaultMigrationsPath  = "./internal/storage/migrations"
 	defaultShortURLSize    = 10
 	defaultStorageMode     = storage.StorageFromFile
 )
@@ -29,8 +30,9 @@ type Config struct {
 	ResultAddr   string
 }
 
-func NewConfig() *Config {
-	return &Config{
+// NewConfig Возвращает указатель на конфиг, withoutFlags нужен для тестов, чтобы не читать флаги постоянно.
+func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
+	cfg := &Config{
 		ServerAddr:  defaultSrvAddr,
 		ResultAddr:  defaultResAddr,
 		StorageMode: defaultStorageMode,
@@ -40,14 +42,22 @@ func NewConfig() *Config {
 				FilePath: defaultFileStoragePath,
 			},
 			Database: &databaseConfig.DBConfig{
-				DSN: "",
+				DSN:            "",
+				MigrationsPath: defaultMigrationsPath,
 			},
 		},
 		ShortURLSize: defaultShortURLSize,
 	}
+	if withoutFlags {
+		return cfg
+	}
+
+	cfg.build(logger)
+
+	return cfg
 }
 
-func (c *Config) Build() {
+func (c *Config) build(logger *zap.Logger) {
 	flag.StringVar(&c.ServerAddr, "a", defaultSrvAddr, "Server host and port")
 	flag.StringVar(&c.ResultAddr, "b", defaultResAddr, "Result host and port")
 	flag.StringVar(&c.Storage.FileStorage.FilePath, "f", defaultFileStoragePath, "File storage path")
@@ -77,6 +87,6 @@ func (c *Config) Build() {
 
 	if c.Storage.Database.DSN != "" {
 		c.StorageMode = storage.StorageInDatabase
-		log.Println("Database mode ON")
+		logger.Debug("Database mode ON")
 	}
 }
