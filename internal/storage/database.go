@@ -3,8 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -26,8 +26,21 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 		return "", fmt.Errorf("error starting transaction %w", err)
 	}
 	defer func() {
-		_ = tx.Rollback()
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			_ = tx.Commit()
+		}
 	}()
+
+	shortURL, err := db.GetShortURL(ctx, tx, newURL.OriginalURL)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return "", fmt.Errorf("error getting short URL for original %w", err)
+	}
+
+	if shortURL != "" {
+		return shortURL, ErrOriginalURLExist
+	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, `
 		INSERT INTO URL (short_url, original_url)
@@ -43,19 +56,9 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 
 	_, err = preparedInsert.ExecContext(ctx, newURL.ShortURL, newURL.OriginalURL)
 	if err != nil {
-		if strings.Contains(err.Error(), UniqueViolationCode) {
-			if strings.Contains(err.Error(), errOriginalURLExist.Field) {
-				shortURL, err := db.GetShortURL(ctx, tx, newURL.OriginalURL)
-				if err != nil {
-					return "", fmt.Errorf("error getting existing short url %w", err)
-				}
-				return shortURL, fmt.Errorf("%w : %s", ErrOriginalURLExist, newURL.OriginalURL)
-			}
-		}
 		return "", fmt.Errorf("error exec context from database in addurl %w", err)
 	}
 
-	_ = tx.Commit()
 	return newURL.ShortURL, nil
 }
 
@@ -68,23 +71,18 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 		_ = tx.Rollback()
 	}()
 
-	preparedQuery, err := tx.PrepareContext(ctx, `
+	preparedInsert, err := tx.PrepareContext(ctx, `
 		INSERT INTO url (short_url, original_url) VALUES ($1, $2)
 	`)
 	if err != nil {
-		if strings.Contains(err.Error(), UniqueViolationCode) {
-			if strings.Contains(err.Error(), errOriginalURLExist.Field) {
-				return ErrOriginalURLExist
-			}
-		}
-		return fmt.Errorf("error creating prepared query in addURLs %w", err)
+		return fmt.Errorf("error prepare insert query for multi urls %w", err)
 	}
 	defer func() {
-		_ = preparedQuery.Close()
+		_ = preparedInsert.Close()
 	}()
 
 	for _, url := range newURLs {
-		_, err = preparedQuery.ExecContext(ctx, url.ShortURL, url.OriginalURL)
+		_, err = preparedInsert.ExecContext(ctx, url.ShortURL, url.OriginalURL)
 		if err != nil {
 			return fmt.Errorf("error exec context %w", err)
 		}
