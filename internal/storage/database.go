@@ -118,8 +118,11 @@ func (db *DatabaseStorage) GetFullURL(ctx context.Context, shortURL string) (str
 func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL string) (string, error) {
 	preparedSelect, err := tx.PrepareContext(ctx, `SELECT short_url FROM url WHERE original_url = $1`)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error prepare select query %w", err)
 	}
+	defer func() {
+		_ = preparedSelect.Close()
+	}()
 
 	var shortURL string
 	if err := preparedSelect.QueryRowContext(ctx, fullURL).Scan(&shortURL); err != nil {
