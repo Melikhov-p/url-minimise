@@ -123,12 +123,12 @@ func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL 
 	}()
 
 	var shortURL string
-	if err := preparedSelect.QueryRowContext(ctx, fullURL).Scan(&shortURL); err != nil {
-		return "", fmt.Errorf("error scanning query row full url %w", err)
-	}
-
-	if shortURL == "" {
-		return shortURL, ErrNotFound
+	rows := preparedSelect.QueryRowContext(ctx, fullURL)
+	if err = rows.Scan(&shortURL); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return shortURL, ErrNotFound
+		}
+		return shortURL, fmt.Errorf("error scanning rows from database %w", err)
 	}
 	return shortURL, nil
 }
