@@ -59,7 +59,7 @@ func randomString(ctx context.Context, size int, s Storage) (string, error) {
 			b[i] = chars[rnd.Intn(len(chars))]
 		}
 		str := string(b)
-
+		time.Sleep(1 * time.Nanosecond) // Иначе в batch есть шанс два одинаковых сгенерить
 		if ok := s.CheckShort(ctx, str); !ok {
 			return str, nil
 		}

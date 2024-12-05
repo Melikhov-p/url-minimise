@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
@@ -37,7 +38,7 @@ func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string
 		}
 	}
 
-	return "", ErrNotFound
+	return "", fmt.Errorf("can not found short url for original %w", ErrNotFound)
 }
 
 func (s *MemoryStorage) GetFullURL(_ context.Context, shortURL string) (string, error) {
@@ -45,7 +46,7 @@ func (s *MemoryStorage) GetFullURL(_ context.Context, shortURL string) (string, 
 	if searchedElem != nil {
 		return searchedElem.OriginalURL, nil
 	}
-	return "", ErrNotFound
+	return "", fmt.Errorf("can not found original url for short %w", ErrNotFound)
 }
 
 func (s *MemoryStorage) CheckShort(_ context.Context, short string) bool { return s.DB[short] != nil }

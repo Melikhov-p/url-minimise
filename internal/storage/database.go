@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -71,9 +72,14 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 		_ = tx.Rollback()
 	}()
 
-	preparedInsert, err := tx.PrepareContext(ctx, `
-		INSERT INTO url (short_url, original_url) VALUES ($1, $2)
-	`)
+	placeholders := make([]string, 0, len(newURLs)-1)
+	for _, url := range newURLs {
+		placeholders = append(placeholders, fmt.Sprintf("('%s', '%s')", url.ShortURL, url.OriginalURL))
+	}
+
+	preparedInsert, err := tx.PrepareContext(ctx, fmt.Sprintf(`
+		INSERT INTO url (short_url, original_url) VALUES %s
+	`, strings.Join(placeholders, ", ")))
 	if err != nil {
 		return fmt.Errorf("error prepare insert query for multi urls %w", err)
 	}
@@ -81,11 +87,9 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 		_ = preparedInsert.Close()
 	}()
 
-	for _, url := range newURLs {
-		_, err = preparedInsert.ExecContext(ctx, url.ShortURL, url.OriginalURL)
-		if err != nil {
-			return fmt.Errorf("error exec context %w", err)
-		}
+	_, err = preparedInsert.ExecContext(ctx)
+	if err != nil {
+		return fmt.Errorf("error executing context for prepared insert %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
