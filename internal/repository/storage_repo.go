@@ -31,9 +31,7 @@ type StorageSaver interface { // Для хранилищ, которым нуж�
 func NewStorage(cfg *config.Config) (Storage, error) {
 	switch cfg.StorageMode {
 	case storage.BaseStorage:
-		return &storage.MemoryStorage{
-			DB: map[string]*models.StorageURL{},
-		}, nil
+		return storage.NewMemoryStorage(), nil
 	case storage.StorageFromFile:
 		file, err := os.OpenFile(cfg.Storage.FileStorage.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
 		if err != nil {
@@ -43,11 +41,9 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 		scan := bufio.NewScanner(file)
 
 		store := &storage.FileStorage{
-			MemoryStorage: storage.MemoryStorage{
-				DB: map[string]*models.StorageURL{},
-			},
-			File:    file,
-			Encoder: json.NewEncoder(file),
+			MemoryStorage: *storage.NewMemoryStorage(),
+			File:          file,
+			Encoder:       json.NewEncoder(file),
 		}
 
 		var element models.StorageURL
@@ -56,7 +52,7 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshal url from model %w", err)
 			}
-			store.DB[element.ShortURL] = &element
+			store.SetInMemory(element.ShortURL, &element)
 		}
 
 		return store, nil

@@ -5,8 +5,6 @@ run:
   timeout: 5m
   tests: true
   build-tags: [ ]
-  # Which files to skip: they will be analyzed, but issues from them won't be reported.
-  skip-files: [ ]
 
   # Invariable parameters #
 
@@ -546,6 +544,7 @@ issues:
     - "file, err := os.OpenFile(cfg.Storage.FileStorage.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)"
     - "G302: Expect file permissions to be 0600 or less"
     - "mnd: Magic number: 0o666, in <argument> detected"
+    - "mnd: Magic number: 2, in <argument> detected"
   # Which dirs to exclude: issues from them won't be reported.
   # Can use regexp here: `generated.*`, regexp is applied on full path,
   # including the path prefix if one is set.

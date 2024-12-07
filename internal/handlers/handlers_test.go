@@ -408,7 +408,7 @@ func randomString(length int) string {
 // createRandomURL генерирует случайный URL
 func createRandomURL() string {
 	scheme := "https"
-	host := randomString(10) + ".example.com"
+	host := randomString(10) + ".example." + randomString(3)
 	path := "/" + randomString(5)
 
 	u := &url.URL{

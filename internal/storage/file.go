@@ -16,6 +16,11 @@ type FileStorage struct {
 	Scanner *bufio.Scanner
 }
 
+// SetInMemory Жесткая установка связки в in-memory хранилище при загрузке данных из файла.
+func (s *FileStorage) SetInMemory(shortURL string, newURL *models.StorageURL) {
+	s.db[shortURL] = newURL
+}
+
 func (s *FileStorage) Save(record *models.StorageURL) error {
 	if err := s.Encoder.Encode(record); err != nil {
 		return fmt.Errorf("error encoding json to model %w", err)

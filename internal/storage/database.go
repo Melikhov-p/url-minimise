@@ -72,9 +72,11 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 		_ = tx.Rollback()
 	}()
 
-	placeholders := make([]string, 0, len(newURLs)-1)
-	for _, url := range newURLs {
-		placeholders = append(placeholders, fmt.Sprintf("('%s', '%s')", url.ShortURL, url.OriginalURL))
+	placeholders := make([]string, len(newURLs))
+	values := make([]interface{}, 0, len(newURLs)*2)
+	for i, url := range newURLs {
+		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
+		values = append(values, url.ShortURL, url.OriginalURL)
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, fmt.Sprintf(`
@@ -87,7 +89,7 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 		_ = preparedInsert.Close()
 	}()
 
-	_, err = preparedInsert.ExecContext(ctx)
+	_, err = preparedInsert.ExecContext(ctx, values...)
 	if err != nil {
 		return fmt.Errorf("error executing context for prepared insert %w", err)
 	}
