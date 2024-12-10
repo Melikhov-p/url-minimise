@@ -3,22 +3,34 @@ package handlers
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
-	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
+
+func setupTest(t *testing.T) (*config.Config, *zap.Logger) {
+	logger, err := loggerBuilder.BuildLogger("DEBUG")
+	assert.NoError(t, err)
+	cfg := config.NewConfig(logger, true)
+
+	return cfg, logger
+}
 
 func TestCreateShortURL(t *testing.T) {
 	testCases := []struct {
@@ -31,7 +43,7 @@ func TestCreateShortURL(t *testing.T) {
 			method:              http.MethodPost,
 			expectedCode:        http.StatusCreated,
 			expectedContentType: `text/plain`,
-			body:                `https://github.com/Melikhov-p/url-minimise/pull/5`,
+			body:                createRandomURL(),
 		},
 		{
 			method:              http.MethodGet,
@@ -53,14 +65,12 @@ func TestCreateShortURL(t *testing.T) {
 		},
 	}
 
+	cfg, logger := setupTest(t)
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
-			cfg := config.NewConfig()
-			logger, err := loggerBuilder.BuildLogger("DEBUG")
-			assert.NoError(t, err)
-			storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+			storage, err := repository.NewStorage(cfg)
 			assert.NoError(t, err)
 			CreateShortURL(w, request, cfg, storage, logger)
 
@@ -103,15 +113,15 @@ func TestGetFullURL(t *testing.T) {
 		},
 	}
 
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg)
+	assert.NoError(t, err)
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/"+test.shortURL, http.NoBody)
 			w := httptest.NewRecorder()
-			logger, err := loggerBuilder.BuildLogger("DEBUG")
-			assert.NoError(t, err)
-			storage, err := repository.NewStorage(storagePkg.StorageFromFile, config.NewConfig())
-			assert.NoError(t, err)
-			GetFullURL(w, request, storage, logger)
+
+			GetFullURL(w, request, cfg, storage, logger)
 
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedContentType, w.Header().Get(`Content-Type`))
@@ -121,10 +131,9 @@ func TestGetFullURL(t *testing.T) {
 
 func TestHappyPath(t *testing.T) {
 	router := chi.NewRouter()
-	cfg := config.NewConfig()
-	logger, err := loggerBuilder.BuildLogger("DEBUG")
-	assert.NoError(t, err)
-	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -136,11 +145,12 @@ func TestHappyPath(t *testing.T) {
 			CreateShortURL(w, r, cfg, storage, logger)
 		})
 	router.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
-		GetFullURL(w, r, storage, logger)
+		GetFullURL(w, r, cfg, storage, logger)
 	})
 
 	srv := httptest.NewServer(router)
 	defer srv.Close()
+	urlTest := createRandomURL()
 
 	testCreate := struct {
 		method       string
@@ -148,7 +158,7 @@ func TestHappyPath(t *testing.T) {
 		expectedCode int
 	}{
 		method:       http.MethodPost,
-		fullURL:      "https://github.com/Melikhov-p/url-minimise/pull/5",
+		fullURL:      urlTest,
 		expectedCode: http.StatusCreated}
 	testGet := struct {
 		method       string
@@ -158,7 +168,7 @@ func TestHappyPath(t *testing.T) {
 	}{
 		method:       http.MethodGet,
 		shortURL:     "",
-		fullURL:      "https://github.com/Melikhov-p/url-minimise/pull/5",
+		fullURL:      urlTest,
 		expectedCode: http.StatusTemporaryRedirect,
 	}
 
@@ -189,10 +199,9 @@ func TestHappyPath(t *testing.T) {
 
 func TestAPICreateShortURL(t *testing.T) {
 	router := chi.NewRouter()
-	cfg := config.NewConfig()
-	logger, err := loggerBuilder.BuildLogger("DEBUG")
-	assert.NoError(t, err)
-	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -206,6 +215,8 @@ func TestAPICreateShortURL(t *testing.T) {
 
 	srv := httptest.NewServer(router)
 	defer srv.Close()
+	urlTest := createRandomURL()
+	requestBody := fmt.Sprintf(`{"url":"%s"}`, urlTest)
 
 	testCases := []struct {
 		name         string
@@ -215,13 +226,19 @@ func TestAPICreateShortURL(t *testing.T) {
 	}{
 		{
 			name:         "APIHappyTest",
-			request:      `{"url":"https://practicum.yandex.ru"}`,
+			request:      requestBody,
 			method:       http.MethodPost,
 			expectedCode: http.StatusCreated,
 		},
 		{
+			name:         "APIHappyTest",
+			request:      requestBody,
+			method:       http.MethodPost,
+			expectedCode: http.StatusConflict,
+		},
+		{
 			name:         "APIMethodNotAllowedTest",
-			request:      `{"url":"https://practicum.yandex.ru"}`,
+			request:      requestBody,
 			method:       http.MethodGet,
 			expectedCode: http.StatusMethodNotAllowed,
 		},
@@ -245,10 +262,9 @@ func TestAPICreateShortURL(t *testing.T) {
 
 func TestCompressor(t *testing.T) {
 	router := chi.NewRouter()
-	cfg := config.NewConfig()
-	logger, err := loggerBuilder.BuildLogger("DEBUG")
-	assert.NoError(t, err)
-	storage, err := repository.NewStorage(storagePkg.StorageFromFile, cfg)
+
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -264,9 +280,9 @@ func TestCompressor(t *testing.T) {
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	requestBody := `{"url": "https://practicum.yandex.ru/"}`
-
 	t.Run("sends_gzip", func(t *testing.T) {
+		urlTest := createRandomURL()
+		requestBody := fmt.Sprintf(`{"url":"%s"}`, urlTest)
 		buf := bytes.NewBuffer(nil)
 		zb := gzip.NewWriter(buf)
 		_, err := zb.Write([]byte(requestBody))
@@ -287,6 +303,8 @@ func TestCompressor(t *testing.T) {
 	})
 
 	t.Run("accepts_gzip", func(t *testing.T) {
+		urlTest := createRandomURL()
+		requestBody := fmt.Sprintf(`{"url":"%s1"}`, urlTest)
 		buf := bytes.NewBufferString(requestBody)
 		request := resty.New().R()
 		request.URL = srv.URL + "/api/shorten"
@@ -300,4 +318,104 @@ func TestCompressor(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, http.StatusCreated, resp.StatusCode())
 	})
+}
+
+func TestAPICreateBatchShortURL(t *testing.T) {
+	router := chi.NewRouter()
+
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
+
+	router.Post("/api/shorten/batch",
+		func(w http.ResponseWriter, r *http.Request) {
+			APICreateBatchURLs(w, r, cfg, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	testCases := []struct {
+		name         string
+		request      string
+		method       string
+		expectedCode int
+	}{
+		{
+			name: "APIBatchHappyTest",
+			request: fmt.Sprintf(`[
+								{
+									"correlation_id": "1",
+									"original_url": "%s"
+								},
+								{
+									"correlation_id": "2",
+									"original_url": "%s"
+								},
+								{
+									"correlation_id": "3",
+									"original_url": "%s"
+								}
+							] `, createRandomURL(), createRandomURL(), createRandomURL()),
+			method:       http.MethodPost,
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name:         "APIBatchMethodNotAllowedTest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodGet,
+			expectedCode: http.StatusMethodNotAllowed,
+		},
+		{
+			name:         "APIBatchBadRequest",
+			request:      `{"url":"https://practicum.yandex.ru"}`,
+			method:       http.MethodPost,
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			request := resty.New().R()
+			request.URL = srv.URL + "/api/shorten/batch"
+			request.Method = test.method
+
+			request.SetHeader("Content-Type", "application/json")
+			request.SetBody(test.request)
+
+			resp, err := request.Send()
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedCode, resp.StatusCode())
+		})
+	}
+}
+
+// randomString генерирует случайную строку заданной длины
+func randomString(length int) string {
+	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+// createRandomURL генерирует случайный URL
+func createRandomURL() string {
+	scheme := "https"
+	host := randomString(10) + ".example." + randomString(3)
+	path := "/" + randomString(5)
+
+	u := &url.URL{
+		Scheme: scheme,
+		Host:   host,
+		Path:   path,
+	}
+
+	return u.String()
 }

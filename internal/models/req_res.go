@@ -7,3 +7,20 @@ type Request struct {
 type Response struct {
 	ResultURL string `json:"result"`
 }
+
+type BatchRequest struct {
+	BatchURLs []BatchURLRequest
+}
+type BatchURLRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type BatchResponse struct {
+	BatchURLs []BatchURLResponse
+}
+
+type BatchURLResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}

@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -9,8 +11,8 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
-func NewStorageURL(fullURL string, s Storage, cfg *config.Config) (*models.StorageURL, error) {
-	short, err := randomString(cfg.ShortURLSize, s)
+func NewStorageURL(ctx context.Context, fullURL string, s Storage, cfg *config.Config) (*models.StorageURL, error) {
+	short, err := randomString(ctx, cfg.ShortURLSize, s)
 
 	if err == nil {
 		return &models.StorageURL{
@@ -21,7 +23,29 @@ func NewStorageURL(fullURL string, s Storage, cfg *config.Config) (*models.Stora
 	return nil, err
 }
 
-func randomString(size int, s Storage) (string, error) { // Создает рандомную строку заданного размера
+func NewStorageMultiURL(
+	ctx context.Context,
+	fullURLs []string,
+	s Storage,
+	cfg *config.Config) ([]*models.StorageURL, error) {
+	newURLs := make([]*models.StorageURL, 0, len(fullURLs))
+
+	for _, url := range fullURLs {
+		short, err := randomString(ctx, cfg.ShortURLSize, s)
+		if err != nil {
+			return nil, fmt.Errorf("error creating random string %w", err)
+		}
+		newURLs = append(newURLs, &models.StorageURL{
+			ShortURL:    short,
+			OriginalURL: url,
+		})
+	}
+
+	return newURLs, nil
+}
+
+// Создает рандомную строку заданного размера.
+func randomString(ctx context.Context, size int, s Storage) (string, error) {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	tries := 5 // количество попыток создать уникальную строку
 
@@ -35,16 +59,12 @@ func randomString(size int, s Storage) (string, error) { // Создает ра�
 			b[i] = chars[rnd.Intn(len(chars))]
 		}
 		str := string(b)
-
-		if ok := checkDuplicates(str, s); ok {
+		time.Sleep(1 * time.Nanosecond) // Иначе в batch есть шанс два одинаковых сгенерить
+		if ok := s.CheckShort(ctx, str); !ok {
 			return str, nil
 		}
 		tries--
 	}
 
 	return "", errors.New("reached max tries limit")
-}
-func checkDuplicates(el string, s Storage) bool {
-	checked := s.GetDB()[el]
-	return checked == nil
 }

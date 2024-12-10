@@ -22,23 +22,33 @@ func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Lo
 		middleware.GzipMiddleware,
 	)
 
-	createURLWrapper := func(w http.ResponseWriter, r *http.Request) {
-		handlers.CreateShortURL(w, r, cfg, storage, logger)
-	}
-	getURLWrapper := func(w http.ResponseWriter, r *http.Request) {
-		handlers.GetFullURL(w, r, storage, logger)
-	}
-	createURLAPIWrapper := func(w http.ResponseWriter, r *http.Request) {
-		handlers.APICreateShortURL(w, r, cfg, storage, logger)
-	}
+	router.Get("/ping", wrapper(handlers.PingDatabase, cfg, storage, logger))
 
-	router.Post("/", createURLWrapper)
+	router.Post("/", wrapper(handlers.CreateShortURL, cfg, storage, logger))
 
-	router.Get("/{id}", getURLWrapper)
+	router.Get("/{id}", wrapper(handlers.GetFullURL, cfg, storage, logger))
 
 	router.Route("/api", func(r chi.Router) {
-		r.Post("/shorten", createURLAPIWrapper)
+		r.Route("/shorten", func(r chi.Router) {
+			r.Post("/", wrapper(handlers.APICreateShortURL, cfg, storage, logger))
+			r.Post("/batch", wrapper(handlers.APICreateBatchURLs, cfg, storage, logger))
+		})
 	})
 
 	return router
+}
+
+func wrapper(
+	wrappedFunc func(http.ResponseWriter,
+		*http.Request,
+		*config.Config,
+		repository.Storage,
+		*zap.Logger),
+	cfg *config.Config,
+	storage repository.Storage,
+	logger *zap.Logger,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		wrappedFunc(w, r, cfg, storage, logger)
+	}
 }
