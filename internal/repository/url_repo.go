@@ -11,7 +11,10 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
-func NewStorageURL(ctx context.Context, fullURL string, s Storage, cfg *config.Config, userID int) (*models.StorageURL, error) {
+func NewStorageURL(ctx context.Context,
+	fullURL string, s Storage,
+	cfg *config.Config,
+	userID int) (*models.StorageURL, error) {
 	short, err := randomString(ctx, cfg.ShortURLSize, s)
 
 	if err == nil {

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,13 +14,12 @@ type Claims struct {
 }
 
 const SECRETKEY = "supersecretkey"
-
-var ErrUnValid error
+const tokenLifeTime = 24 * time.Hour
 
 func BuildJWTString(userID int) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenLifeTime)),
 		},
 		UserID: userID,
 	})
@@ -29,7 +29,7 @@ func BuildJWTString(userID int) (string, error) {
 		return "", fmt.Errorf("error creating signed JWT %w", err)
 	}
 
-	return tokenString, err
+	return tokenString, nil
 }
 
 func GetUserID(tokenString string) (int, error) {
@@ -48,7 +48,7 @@ func GetUserID(tokenString string) (int, error) {
 	}
 
 	if !token.Valid {
-		return -1, fmt.Errorf("token is not valid")
+		return -1, errors.New("token invalid")
 	}
 
 	return claims.UserID, nil

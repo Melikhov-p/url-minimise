@@ -16,6 +16,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const cookieToken = "Token"
+
 func CreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -38,19 +40,22 @@ func CreateShortURL(
 
 	ctx := r.Context()
 
-	tokenCookie, err := r.Cookie("Token")
+	tokenCookie, err := r.Cookie(cookieToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		w.WriteHeader(http.StatusBadRequest)
 		logger.Error("can not read cookie from request", zap.Error(err))
 		return
 	}
 
-	var token string
-	token = tokenCookie.String()
+	token := tokenCookie.String()
 	user, err := service.AuthUserByToken(token, storage, logger)
 	if err != nil {
 		logger.Debug("unauthorized user", zap.Error(err))
 		user, err = service.AddNewUser(ctx, storage)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error creating new user", zap.Error(err))
+		}
 	}
 
 	if !user.Service.IsAuthenticated {
@@ -130,19 +135,22 @@ func APICreateShortURL(
 
 	ctx := r.Context()
 
-	tokenCookie, err := r.Cookie("Token")
+	tokenCookie, err := r.Cookie(cookieToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		w.WriteHeader(http.StatusBadRequest)
 		logger.Error("can not read cookie from request", zap.Error(err))
 		return
 	}
 
-	var token string
-	token = tokenCookie.String()
+	token := tokenCookie.String()
 	user, err := service.AuthUserByToken(token, storage, logger)
 	if err != nil {
 		logger.Debug("unauthorized user", zap.Error(err))
 		user, err = service.AddNewUser(ctx, storage)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error creating new user", zap.Error(err))
+		}
 	}
 
 	if !user.Service.IsAuthenticated {
@@ -218,19 +226,22 @@ func APICreateBatchURLs(
 		return
 	}
 
-	tokenCookie, err := r.Cookie("Token")
+	tokenCookie, err := r.Cookie(cookieToken)
 	if err != nil && !errors.Is(err, http.ErrNoCookie) {
 		w.WriteHeader(http.StatusBadRequest)
 		logger.Error("can not read cookie from request", zap.Error(err))
 		return
 	}
 
-	var token string
-	token = tokenCookie.String()
+	token := tokenCookie.String()
 	user, err := service.AuthUserByToken(token, storage, logger)
 	if err != nil {
 		logger.Debug("unauthorized user", zap.Error(err))
 		user, err = service.AddNewUser(ctx, storage)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error creating new user", zap.Error(err))
+		}
 	}
 
 	if !user.Service.IsAuthenticated {

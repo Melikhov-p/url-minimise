@@ -10,16 +10,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func AuthTest(token string) (*models.User, error) {
-	return &models.User{
-		ID: 1,
-		Service: &models.UserService{
-			IsAuthenticated: false,
-			Token:           "",
-		},
-	}, nil
-}
-
 func AuthUserByToken(tokenString string, s repository.Storage, logger *zap.Logger) (*models.User, error) {
 	emptyUser := repository.NewEmptyUser()
 	userID, err := auth.GetUserID(tokenString)
@@ -57,10 +47,10 @@ func AddNewUser(ctx context.Context, s repository.Storage) (*models.User, error)
 }
 
 func BuildUserToken(userID int) (string, error) {
-	//BuildUserToken return token string for userID int
+	// BuildUserToken return token string for userID int
 	token, err := auth.BuildJWTString(userID)
 	if err != nil {
-		return "", fmt.Errorf("error creating token for user")
+		return "", fmt.Errorf("error creating token for user %w", err)
 	}
 
 	return token, nil

@@ -15,7 +15,7 @@ import (
 func GetUserURLs(
 	w http.ResponseWriter,
 	r *http.Request,
-	_ *config.Config,
+	cfg *config.Config,
 	storage repository.Storage,
 	logger *zap.Logger) {
 	if r.Method != http.MethodGet {
@@ -62,7 +62,7 @@ func GetUserURLs(
 	var res models.UserURLsResponse
 	for _, url := range urls {
 		res.UserURLs = append(res.UserURLs, &models.UserURL{
-			ShortURL:    url.ShortURL,
+			ShortURL:    cfg.ResultAddr + "/" + url.ShortURL,
 			OriginalURL: url.OriginalURL,
 		})
 	}
@@ -72,5 +72,4 @@ func GetUserURLs(
 		w.WriteHeader(http.StatusInternalServerError)
 		logger.Error("error encoding user's urls response", zap.Error(err))
 	}
-
 }
