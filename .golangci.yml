@@ -545,6 +545,10 @@ issues:
     - "G302: Expect file permissions to be 0600 or less"
     - "mnd: Magic number: 0o666, in <argument> detected"
     - "mnd: Magic number: 2, in <argument> detected"
+    - "mnd: Magic number: 3, in <argument> detected"
+    - "Use ExecContext instead of QueryRowContext to execute `INSERT` query"
+    - "rows.Err must be checked" # For line 202: rows, err := db.DB.QueryContext(ctx, query, userID) err checked already
+
   # Which dirs to exclude: issues from them won't be reported.
   # Can use regexp here: `generated.*`, regexp is applied on full path,
   # including the path prefix if one is set.

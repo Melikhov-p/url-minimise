@@ -38,7 +38,32 @@ func CreateShortURL(
 
 	ctx := r.Context()
 
-	newURL, err := service.AddURL(ctx, storage, logger, string(originalURL), cfg)
+	tokenCookie, err := r.Cookie("Token")
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		w.WriteHeader(http.StatusBadRequest)
+		logger.Error("can not read cookie from request", zap.Error(err))
+		return
+	}
+
+	var token string
+	token = tokenCookie.String()
+	user, err := service.AuthUserByToken(token, storage, logger)
+	if err != nil {
+		logger.Debug("unauthorized user", zap.Error(err))
+		user, err = service.AddNewUser(ctx, storage)
+	}
+
+	if !user.Service.IsAuthenticated {
+		logger.Error("error of authentication after creating new user")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  "Token",
+		Value: user.Service.Token,
+	})
+
+	newURL, err := service.AddURL(ctx, storage, logger, string(originalURL), cfg, user.ID)
 	if err != nil {
 		if errors.Is(err, storagePkg.ErrOriginalURLExist) {
 			w.WriteHeader(http.StatusConflict)
@@ -105,6 +130,31 @@ func APICreateShortURL(
 
 	ctx := r.Context()
 
+	tokenCookie, err := r.Cookie("Token")
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		w.WriteHeader(http.StatusBadRequest)
+		logger.Error("can not read cookie from request", zap.Error(err))
+		return
+	}
+
+	var token string
+	token = tokenCookie.String()
+	user, err := service.AuthUserByToken(token, storage, logger)
+	if err != nil {
+		logger.Debug("unauthorized user", zap.Error(err))
+		user, err = service.AddNewUser(ctx, storage)
+	}
+
+	if !user.Service.IsAuthenticated {
+		logger.Error("error of authentication after creating new user")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  "Token",
+		Value: user.Service.Token,
+	})
+
 	logger.Debug("start decoding request")
 	var req models.Request
 	dec := json.NewDecoder(r.Body)
@@ -117,7 +167,7 @@ func APICreateShortURL(
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
 
-	newURL, err := service.AddURL(ctx, storage, logger, req.URL, cfg)
+	newURL, err := service.AddURL(ctx, storage, logger, req.URL, cfg, user.ID)
 	if err != nil {
 		if errors.Is(err, storagePkg.ErrOriginalURLExist) {
 			w.WriteHeader(http.StatusConflict)
@@ -158,6 +208,8 @@ func APICreateBatchURLs(
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	ctx := r.Context()
 	dec := json.NewDecoder(r.Body)
 	var req models.BatchRequest
 	if err := dec.Decode(&req.BatchURLs); err != nil {
@@ -166,12 +218,37 @@ func APICreateBatchURLs(
 		return
 	}
 
+	tokenCookie, err := r.Cookie("Token")
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		w.WriteHeader(http.StatusBadRequest)
+		logger.Error("can not read cookie from request", zap.Error(err))
+		return
+	}
+
+	var token string
+	token = tokenCookie.String()
+	user, err := service.AuthUserByToken(token, storage, logger)
+	if err != nil {
+		logger.Debug("unauthorized user", zap.Error(err))
+		user, err = service.AddNewUser(ctx, storage)
+	}
+
+	if !user.Service.IsAuthenticated {
+		logger.Error("error of authentication after creating new user")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  "Token",
+		Value: user.Service.Token,
+	})
+
 	originalURLs := make([]string, 0, len(req.BatchURLs))
 	for _, url := range req.BatchURLs {
 		originalURLs = append(originalURLs, url.OriginalURL)
 	}
 
-	newURLs, err := repository.NewStorageMultiURL(r.Context(), originalURLs, storage, cfg)
+	newURLs, err := repository.NewStorageMultiURL(r.Context(), originalURLs, storage, cfg, user.ID)
 	if err != nil {
 		logger.Error("error getting new storage for multi urls", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)

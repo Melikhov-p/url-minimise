@@ -19,8 +19,9 @@ func AddURL(
 	logger *zap.Logger,
 	originalURL string,
 	cfg *config.Config,
+	userID int,
 ) (*models.StorageURL, error) {
-	newURL, err := repository.NewStorageURL(ctx, originalURL, storage, cfg)
+	newURL, err := repository.NewStorageURL(ctx, originalURL, storage, cfg, userID)
 	if err != nil {
 		logger.Error("error creating short URL", zap.Error(err))
 		return nil, fmt.Errorf("error creating short URL model %w", err)

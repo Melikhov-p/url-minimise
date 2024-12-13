@@ -44,8 +44,8 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, `
-		INSERT INTO URL (short_url, original_url)
-        VALUES ($1, $2)
+		INSERT INTO URL (short_url, original_url, user_id)
+        VALUES ($1, $2, $3)
 	`)
 	if err != nil {
 		return "", fmt.Errorf("error creating prepared insert query %w", err)
@@ -55,7 +55,7 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 		_ = preparedInsert.Close()
 	}()
 
-	_, err = preparedInsert.ExecContext(ctx, newURL.ShortURL, newURL.OriginalURL)
+	_, err = preparedInsert.ExecContext(ctx, newURL.ShortURL, newURL.OriginalURL, newURL.UserID)
 	if err != nil {
 		return "", fmt.Errorf("error exec context from database in addurl %w", err)
 	}
@@ -73,14 +73,14 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	}()
 
 	placeholders := make([]string, len(newURLs))
-	values := make([]interface{}, 0, len(newURLs)*2)
+	values := make([]interface{}, 0, len(newURLs)*3)
 	for i, url := range newURLs {
-		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
-		values = append(values, url.ShortURL, url.OriginalURL)
+		placeholders[i] = fmt.Sprintf("($%d, $%d, $%d)", i*3+1, i*3+2, i*3+3)
+		values = append(values, url.ShortURL, url.OriginalURL, url.UserID)
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, fmt.Sprintf(`
-		INSERT INTO url (short_url, original_url) VALUES %s
+		INSERT INTO url (short_url, original_url, user_id) VALUES %s
 	`, strings.Join(placeholders, ", ")))
 	if err != nil {
 		return fmt.Errorf("error prepare insert query for multi urls %w", err)
@@ -156,4 +156,65 @@ func (db *DatabaseStorage) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (db *DatabaseStorage) AddUser(ctx context.Context) (*models.User, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("error starting transaction %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	query := `INSERT INTO "user" DEFAULT VALUES RETURNING id`
+
+	var id int
+	row := tx.QueryRowContext(ctx, query)
+	if err = row.Scan(&id); err != nil {
+		return nil, fmt.Errorf("error insert new user in db %w", err)
+	}
+
+	user := &models.User{
+		ID:   id,
+		URLs: make([]*models.StorageURL, 0),
+		Service: &models.UserService{
+			IsAuthenticated: false,
+			Token:           "",
+		},
+	}
+
+	_ = tx.Commit()
+	return user, nil
+}
+
+func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*models.StorageURL, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	query := `
+				SELECT short_url, original_url, uuid
+				FROM url WHERE user_id = $1;`
+
+	rows, err := db.DB.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting url rows from db %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	urls := make([]*models.StorageURL, 0)
+	for rows.Next() {
+		url := models.StorageURL{}
+		if err = rows.Scan(&url.ShortURL, &url.OriginalURL, &url.UUID); err != nil {
+			return nil, fmt.Errorf("error scanning url from db response %w", err)
+		}
+		urls = append(urls, &url)
+	}
+
+	return urls, nil
 }
