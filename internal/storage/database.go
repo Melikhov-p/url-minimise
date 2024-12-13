@@ -209,11 +209,15 @@ func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*
 
 	urls := make([]*models.StorageURL, 0)
 	for rows.Next() {
-		url := models.StorageURL{}
+		var url models.StorageURL
 		if err = rows.Scan(&url.ShortURL, &url.OriginalURL, &url.UUID); err != nil {
 			return nil, fmt.Errorf("error scanning url from db response %w", err)
 		}
 		urls = append(urls, &url)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating for rows of urls %w", err)
 	}
 
 	return urls, nil
