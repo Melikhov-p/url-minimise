@@ -22,6 +22,8 @@ type Storage interface {
 	GetShortURL(context.Context, *sql.Tx, string) (string, error)
 	CheckShort(context.Context, string) bool
 	Ping(context.Context) error
+	AddUser(ctx context.Context) (*models.User, error)
+	GetURLsByUserID(ctx context.Context, userID int) ([]*models.StorageURL, error)
 }
 
 type StorageSaver interface { // Для хранилищ, которым нужен отдельный метод для сохранения данных, например файл

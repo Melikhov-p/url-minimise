@@ -10,7 +10,10 @@ require (
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 )
 
-require github.com/pressly/goose/v3 v3.23.0
+require (
+	github.com/golang-jwt/jwt/v4 v4.5.1
+	github.com/pressly/goose/v3 v3.23.0
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
