@@ -20,7 +20,7 @@ import (
 type Storage interface {
 	AddURL(context.Context, *models.StorageURL) (string, error)
 	AddURLs(context.Context, []*models.StorageURL) error
-	MarkAsDeletedURL(context.Context, chan storage.MarkDeleteURL) chan storage.MarkDeleteResult
+	MarkAsDeletedURL(context.Context, []string, int, *zap.Logger) error
 	GetURL(context.Context, string) (*models.StorageURL, error)
 	GetShortURL(context.Context, *sql.Tx, string) (string, error)
 	CheckShort(context.Context, string) bool

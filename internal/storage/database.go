@@ -10,6 +10,7 @@ import (
 
 	"github.com/Melikhov-p/url-minimise/internal/auth"
 	"github.com/Melikhov-p/url-minimise/internal/models"
+	"go.uber.org/zap"
 )
 
 type DatabaseStorage struct {
@@ -101,33 +102,29 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	return nil
 }
 
-func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan MarkDeleteURL) chan MarkDeleteResult {
-	outCh := make(chan MarkDeleteResult)
+func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context,
+	urls []string,
+	userID int,
+	logger *zap.Logger) error {
+	placeholders := make([]string, len(urls))
+	for i := range urls {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	query := fmt.Sprintf("UPDATE url SET is_deleted=true WHERE short_url IN (%s) AND user_id = $%d", strings.Join(placeholders, ", "), len(urls)+1)
 
-	go func() {
-		defer close(outCh)
-		ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	// Передаем каждый URL как отдельный параметр
+	args := make([]interface{}, len(urls)+1)
+	for i, url := range urls {
+		args[i] = url
+	}
+	args[len(urls)] = userID
 
-		for url := range inCh {
-			query := `UPDATE url SET is_deleted=true WHERE short_url = $1 AND user_id = $2`
-			if _, err := db.DB.ExecContext(ctx, query, url.ShortURL, url.User.ID); err != nil {
-				outCh <- MarkDeleteResult{
-					URL: url.ShortURL,
-					Res: false,
-					Err: fmt.Errorf("error executing context for delete query %w", err),
-				}
-			} else {
-				outCh <- MarkDeleteResult{
-					URL: url.ShortURL,
-					Res: true,
-					Err: nil,
-				}
-			}
-		}
-		defer cancel()
-	}()
-
-	return outCh
+	if _, err := db.DB.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("error executing context for update query: %w", err)
+	} else {
+		logger.Debug("updated record in database for URLs", zap.Strings("URLs", urls))
+		return nil
+	}
 }
 
 func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models.StorageURL, error) {

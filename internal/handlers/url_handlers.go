@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -89,6 +90,9 @@ func CreateShortURL(
 
 	w.Header().Set(`Content-Type`, `text/plain`)
 	w.WriteHeader(http.StatusCreated)
+	logger.Debug("add new URL from /",
+		zap.String("OriginalURL", newURL.OriginalURL),
+		zap.String("ShortURL", newURL.ShortURL))
 	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", newURL.ShortURL)
 
 	if err != nil {
@@ -204,6 +208,9 @@ func APICreateShortURL(
 		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
 	}
 	w.WriteHeader(http.StatusCreated)
+	logger.Debug("add new URL from /api/shorten",
+		zap.String("OriginalURL", newURL.OriginalURL),
+		zap.String("ShortURL", newURL.ShortURL))
 	if err = enc.Encode(res); err != nil && !errors.Is(err, io.EOF) {
 		logger.Error("error encoding response", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -289,6 +296,7 @@ func APICreateBatchURLs(
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	logger.Debug("add new URLs from /api/shorten/batch")
 
 	if err = enc.Encode(&res.BatchURLs); err != nil {
 		logger.Error("error encoding batch response to json", zap.Error(err))
@@ -337,7 +345,12 @@ func APIMarkAsDeletedURLs(
 	}
 
 	ctx := r.Context()
-	service.MarkAsDeleted(ctx, storage, logger, shortURLs, user, cfg)
+
+	delURLs := models.DelURLs{
+		URLs: shortURLs,
+		Mu:   sync.Mutex{},
+	}
+	go service.MarkAsDeleted(ctx, storage, logger, &delURLs, cfg, user)
 	w.WriteHeader(http.StatusAccepted)
 }
 

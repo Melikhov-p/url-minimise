@@ -394,6 +394,93 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 	}
 }
 
+//func TestAPIMarkAsDeletedURLs(t *testing.T) {
+//	router := chi.NewRouter()
+//
+//	cfg, logger := setupTest(t)
+//	storage, err := repository.NewStorage(cfg, logger)
+//	assert.NoError(t, err)
+//	middleware := middlewares.Middleware{Logger: logger}
+//	router.Use(
+//		middleware.WithLogging,
+//	)
+//
+//	router.Post("/api/shorten/batch",
+//		func(w http.ResponseWriter, r *http.Request) {
+//			APICreateBatchURLs(w, r, cfg, storage, logger)
+//		})
+//
+//	srv := httptest.NewServer(router)
+//	defer srv.Close()
+//
+//	requestCreateURLs := struct {
+//		name         string
+//		request      string
+//		method       string
+//		expectedCode int
+//	}{
+//		name: "APIBatchHappyTest",
+//		request: fmt.Sprintf(`[
+//								{
+//									"correlation_id": "1",
+//									"original_url": "%s"
+//								},
+//								{
+//									"correlation_id": "2",
+//									"original_url": "%s"
+//								},
+//								{
+//									"correlation_id": "3",
+//									"original_url": "%s"
+//								}
+//							] `, createRandomURL(), createRandomURL(), createRandomURL()),
+//		method:       http.MethodPost,
+//		expectedCode: http.StatusCreated,
+//	}
+//
+//	request := resty.New().R()
+//	request.URL = srv.URL + "/api/shorten/batch"
+//	request.Method = http.MethodPost
+//
+//	request.SetHeader("Content-Type", "application/json")
+//	request.SetBody(requestCreateURLs)
+//	resp, err := request.Send()
+//	assert.NoError(t, err)
+//	assert.Equal(t, requestCreateURLs.expectedCode, resp.StatusCode())
+//
+//	var shortURls models.BatchResponse
+//	dec := json.NewDecoder(resp.RawBody())
+//	err = dec.Decode(&shortURls.BatchURLs)
+//	assert.NoError(t, err)
+//
+//	var token string
+//	for _, cookie := range resp.Cookies() {
+//		if cookie.Name == "Token" {
+//			token = cookie.Value
+//		}
+//	}
+//
+//	var delURLs string
+//	for _, urlEl := range shortURls.BatchURLs {
+//		delURLs = fmt.Sprintf("%s, %s", delURLs, urlEl.ShortURL)
+//	}
+//	requestDelURLs := fmt.Sprintf("[%s]", delURLs)
+//	requestDel := resty.New().R()
+//	requestDel.URL = srv.URL + "/api/users/urls"
+//	requestDel.Method = http.MethodDelete
+//	requestDel.SetBody(requestDelURLs)
+//	requestDel.SetCookie(&http.Cookie{
+//		Name:  "Token",
+//		Value: token,
+//	})
+//
+//	respDel, err := requestDel.Send()
+//	assert.NoError(t, err)
+//
+//	assert.Equal(t, http.StatusAccepted, respDel.StatusCode())
+//
+//}
+
 // randomString генерирует случайную строку заданной длины
 func randomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

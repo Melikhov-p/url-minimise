@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -42,62 +41,21 @@ func AddURL(
 }
 
 func MarkAsDeleted(
-	ctx context.Context,
+	_ context.Context,
 	storage repository.Storage,
 	logger *zap.Logger,
-	shortURLs []string,
-	user *models.User,
+	delURLs *models.DelURLs,
 	_ *config.Config,
+	user *models.User,
 ) {
-	inCh := generator(user, shortURLs...)
-	ch1 := storage.MarkAsDeletedURL(ctx, inCh)
-	ch2 := storage.MarkAsDeletedURL(ctx, inCh)
+	delURLs.Mu.Lock()
 
-	for res := range fanIn(ch1, ch2) {
-		logger.Info("request delete URL",
-			zap.Bool("result", res.Res),
-			zap.Error(res.Err),
-			zap.String("URL", res.URL))
-	}
-}
+	ctx := context.Background()
 
-func generator(user *models.User, urls ...string) chan storagePkg.MarkDeleteURL {
-	outCh := make(chan storagePkg.MarkDeleteURL)
-	go func() {
-		defer close(outCh)
-		for _, url := range urls {
-			outCh <- storagePkg.MarkDeleteURL{
-				ShortURL: url,
-				User:     user,
-			}
-		}
-	}()
-
-	return outCh
-}
-
-func fanIn(chans ...chan storagePkg.MarkDeleteResult) chan storagePkg.MarkDeleteResult {
-	resultCh := make(chan storagePkg.MarkDeleteResult)
-
-	wg := sync.WaitGroup{}
-
-	for _, ch := range chans {
-		innerCh := ch
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			for x := range innerCh {
-				resultCh <- x
-			}
-		}()
+	err := storage.MarkAsDeletedURL(ctx, delURLs.URLs, user.ID, logger)
+	if err != nil {
+		logger.Error("error mark as deleted urls", zap.Error(err))
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
-
-	return resultCh
+	delURLs.Mu.Unlock()
 }

@@ -3,9 +3,11 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
+	"go.uber.org/zap"
 )
 
 type MemoryStorage struct {
@@ -38,31 +40,20 @@ func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL)
 	return nil
 }
 
-func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, inCh chan MarkDeleteURL) chan MarkDeleteResult {
-	outCh := make(chan MarkDeleteResult)
-
-	go func() {
-		defer close(outCh)
-
-		for url := range inCh {
-			if !s.CheckShort(context.Background(), url.ShortURL) {
-				outCh <- MarkDeleteResult{
-					URL: url.ShortURL,
-					Res: false,
-					Err: ErrNotFound,
-				}
-			} else {
-				s.urls[url.ShortURL].DeletedFlag = true
-				outCh <- MarkDeleteResult{
-					URL: url.ShortURL,
-					Res: true,
-					Err: nil,
-				}
-			}
+func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context,
+	urls []string,
+	userID int,
+	logger *zap.Logger) error {
+	for _, url := range urls {
+		if s.urls[url].UserID == userID {
+			logger.Debug("mark as deleted url", zap.String("URL", url))
+			s.urls[url].DeletedFlag = true
+		} else {
+			return errors.New("not owner")
 		}
-	}()
+	}
 
-	return outCh
+	return nil
 }
 
 func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string) (string, error) {
