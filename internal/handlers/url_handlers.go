@@ -114,7 +114,7 @@ func GetFullURL(
 
 	matchURL, err := storage.GetURL(ctx, id)
 	if err != nil {
-		logger.Info("not found full URL by short", zap.String("shortURL", id))
+		logger.Info("not found full URL by short", zap.String("shortURL", id), zap.Error(err))
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

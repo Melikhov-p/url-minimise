@@ -1,6 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-ALTER TABLE url ADD COLUMN is_deleted BOOLEAN DEFAULT false;
+ALTER TABLE url ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
 -- +goose StatementEnd
 
 -- +goose Down

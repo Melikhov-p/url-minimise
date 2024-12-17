@@ -22,6 +22,7 @@ func NewStorageURL(ctx context.Context,
 			ShortURL:    short,
 			OriginalURL: fullURL,
 			UserID:      userID,
+			DeletedFlag: false,
 		}, nil
 	}
 	return nil, err

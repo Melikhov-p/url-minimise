@@ -45,8 +45,8 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, `
-		INSERT INTO URL (short_url, original_url, user_id)
-        VALUES ($1, $2, $3)
+		INSERT INTO URL (short_url, original_url, user_id, is_deleted)
+        VALUES ($1, $2, $3, $4)
 	`)
 	if err != nil {
 		return "", fmt.Errorf("error creating prepared insert query %w", err)
@@ -56,7 +56,7 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 		_ = preparedInsert.Close()
 	}()
 
-	_, err = preparedInsert.ExecContext(ctx, newURL.ShortURL, newURL.OriginalURL, newURL.UserID)
+	_, err = preparedInsert.ExecContext(ctx, newURL.ShortURL, newURL.OriginalURL, newURL.UserID, newURL.DeletedFlag)
 	if err != nil {
 		return "", fmt.Errorf("error exec context from database in addurl %w", err)
 	}
@@ -74,14 +74,14 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	}()
 
 	placeholders := make([]string, len(newURLs))
-	values := make([]interface{}, 0, len(newURLs)*3)
+	values := make([]interface{}, 0, len(newURLs)*4)
 	for i, url := range newURLs {
-		placeholders[i] = fmt.Sprintf("($%d, $%d, $%d)", i*3+1, i*3+2, i*3+3)
-		values = append(values, url.ShortURL, url.OriginalURL, url.UserID)
+		placeholders[i] = fmt.Sprintf("($%d, $%d, $%d, $%d)", i*4+1, i*4+2, i*4+3, i*4+4)
+		values = append(values, url.ShortURL, url.OriginalURL, url.UserID, url.DeletedFlag)
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, fmt.Sprintf(`
-		INSERT INTO url (short_url, original_url, user_id) VALUES %s
+		INSERT INTO url (short_url, original_url, user_id, is_deleted) VALUES %s
 	`, strings.Join(placeholders, ", ")))
 	if err != nil {
 		return fmt.Errorf("error prepare insert query for multi urls %w", err)
@@ -132,14 +132,16 @@ func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan MarkD
 
 func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models.StorageURL, error) {
 	query := `
-		SELECT * FROM url WHERE short_url = $1
+		SELECT original_url, user_id, uuid, is_deleted  FROM url WHERE short_url = $1
 	`
 
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
 
 	var u models.StorageURL
-	if err := db.DB.QueryRowContext(ctx, query, shortURL).Scan(&u); err != nil {
+	u.ShortURL = shortURL
+	if err := db.DB.QueryRowContext(ctx, query, shortURL).
+		Scan(&u.OriginalURL, &u.UserID, &u.UUID, &u.DeletedFlag); err != nil {
 		return nil, fmt.Errorf("error scanning query row full url %w", err)
 	}
 

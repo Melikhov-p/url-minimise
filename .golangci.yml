@@ -546,6 +546,7 @@ issues:
     - "mnd: Magic number: 0o666, in <argument> detected"
     - "mnd: Magic number: 2, in <argument> detected"
     - "mnd: Magic number: 3, in <argument> detected"
+    - "mnd: Magic number: 4, in <argument> detected"
     - "mnd: Magic number: 16, in \u003cargument\u003e detected"
     - "mnd: Magic number: 24, in \u003cassign\u003e detected"
     - "Use ExecContext instead of QueryRowContext to execute `INSERT` query"
