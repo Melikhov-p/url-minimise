@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -45,11 +44,14 @@ func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context,
 	userID int,
 	logger *zap.Logger) error {
 	for _, url := range urls {
+		if s.urls[url] == nil {
+			return ErrNotFound
+		}
 		if s.urls[url].UserID == userID {
 			logger.Debug("mark as deleted url", zap.String("URL", url))
 			s.urls[url].DeletedFlag = true
 		} else {
-			return errors.New("not owner")
+			return fmt.Errorf("not owner of %s", url)
 		}
 	}
 
@@ -107,5 +109,12 @@ func (s *MemoryStorage) AddUser(_ context.Context) (*models.User, error) {
 }
 
 func (s *MemoryStorage) GetURLsByUserID(_ context.Context, userID int) ([]*models.StorageURL, error) {
-	return s.users[userID].URLs, nil
+	user := s.users[userID]
+	if user != nil {
+		urls := user.URLs
+		if urls != nil {
+			return urls, nil
+		}
+	}
+	return []*models.StorageURL{}, nil
 }

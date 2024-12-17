@@ -228,7 +228,7 @@ func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*
 
 	rows, err := db.DB.QueryContext(ctx, query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("error getting url rows from db %w", err)
+		return []*models.StorageURL{}, fmt.Errorf("error getting url rows from db %w", err)
 	}
 	defer func() {
 		_ = rows.Close()
@@ -238,13 +238,13 @@ func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*
 	for rows.Next() {
 		var url models.StorageURL
 		if err = rows.Scan(&url.ShortURL, &url.OriginalURL, &url.UUID); err != nil {
-			return nil, fmt.Errorf("error scanning url from db response %w", err)
+			return []*models.StorageURL{}, fmt.Errorf("error scanning url from db response %w", err)
 		}
 		urls = append(urls, &url)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating for rows of urls %w", err)
+		return []*models.StorageURL{}, fmt.Errorf("error iterating for rows of urls %w", err)
 	}
 
 	return urls, nil

@@ -48,10 +48,16 @@ func CreateShortURL(
 		return
 	}
 
-	token := tokenCookie.String()
-	user, err := service.AuthUserByToken(token, storage, logger, cfg)
-	if err != nil {
-		logger.Debug("unauthorized user", zap.Error(err))
+	var user *models.User
+	if !errors.Is(err, http.ErrNoCookie) {
+		token := tokenCookie.Value
+		user, err = service.AuthUserByToken(token, storage, logger, cfg)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error authorizing user")
+			return
+		}
+	} else {
 		user, err = service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -152,10 +158,16 @@ func APICreateShortURL(
 		return
 	}
 
-	token := tokenCookie.String()
-	user, err := service.AuthUserByToken(token, storage, logger, cfg)
-	if err != nil {
-		logger.Debug("unauthorized user", zap.Error(err))
+	var user *models.User
+	if !errors.Is(err, http.ErrNoCookie) {
+		token := tokenCookie.Value
+		user, err = service.AuthUserByToken(token, storage, logger, cfg)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error authorizing user")
+			return
+		}
+	} else {
 		user, err = service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -246,10 +258,16 @@ func APICreateBatchURLs(
 		return
 	}
 
-	token := tokenCookie.String()
-	user, err := service.AuthUserByToken(token, storage, logger, cfg)
-	if err != nil {
-		logger.Debug("unauthorized user", zap.Error(err))
+	var user *models.User
+	if !errors.Is(err, http.ErrNoCookie) {
+		token := tokenCookie.Value
+		user, err = service.AuthUserByToken(token, storage, logger, cfg)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			logger.Error("error authorizing user")
+			return
+		}
+	} else {
 		user, err = service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -347,12 +365,13 @@ func APIMarkAsDeletedURLs(
 	ctx := r.Context()
 
 	go func() {
-		goroutinId := rand.Int()
+		goroutinID := rand.Int()
 		logger.Debug("GOROUTIN START WITH PARAMS",
 			zap.Any("URLS", shortURLs),
-			zap.Int("GOROUTIN ID", goroutinId))
+			zap.Int("GOROUTIN ID", goroutinID))
+
 		err = service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg, user)
-		logger.Debug("GOROUTIN END", zap.Int("GOROUTIN ID", goroutinId))
+		logger.Debug("GOROUTIN END", zap.Int("GOROUTIN ID", goroutinID))
 
 		if err != nil {
 			logger.Error("error deleting url", zap.Error(err))

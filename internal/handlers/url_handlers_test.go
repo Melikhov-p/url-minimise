@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Melikhov-p/url-minimise/internal/auth"
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
@@ -394,92 +395,95 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 	}
 }
 
-//func TestAPIMarkAsDeletedURLs(t *testing.T) {
-//	router := chi.NewRouter()
-//
-//	cfg, logger := setupTest(t)
-//	storage, err := repository.NewStorage(cfg, logger)
-//	assert.NoError(t, err)
-//	middleware := middlewares.Middleware{Logger: logger}
-//	router.Use(
-//		middleware.WithLogging,
-//	)
-//
-//	router.Post("/api/shorten/batch",
-//		func(w http.ResponseWriter, r *http.Request) {
-//			APICreateBatchURLs(w, r, cfg, storage, logger)
-//		})
-//
-//	srv := httptest.NewServer(router)
-//	defer srv.Close()
-//
-//	requestCreateURLs := struct {
-//		name         string
-//		request      string
-//		method       string
-//		expectedCode int
-//	}{
-//		name: "APIBatchHappyTest",
-//		request: fmt.Sprintf(`[
-//								{
-//									"correlation_id": "1",
-//									"original_url": "%s"
-//								},
-//								{
-//									"correlation_id": "2",
-//									"original_url": "%s"
-//								},
-//								{
-//									"correlation_id": "3",
-//									"original_url": "%s"
-//								}
-//							] `, createRandomURL(), createRandomURL(), createRandomURL()),
-//		method:       http.MethodPost,
-//		expectedCode: http.StatusCreated,
-//	}
-//
-//	request := resty.New().R()
-//	request.URL = srv.URL + "/api/shorten/batch"
-//	request.Method = http.MethodPost
-//
-//	request.SetHeader("Content-Type", "application/json")
-//	request.SetBody(requestCreateURLs)
-//	resp, err := request.Send()
-//	assert.NoError(t, err)
-//	assert.Equal(t, requestCreateURLs.expectedCode, resp.StatusCode())
-//
-//	var shortURls models.BatchResponse
-//	dec := json.NewDecoder(resp.RawBody())
-//	err = dec.Decode(&shortURls.BatchURLs)
-//	assert.NoError(t, err)
-//
-//	var token string
-//	for _, cookie := range resp.Cookies() {
-//		if cookie.Name == "Token" {
-//			token = cookie.Value
-//		}
-//	}
-//
-//	var delURLs string
-//	for _, urlEl := range shortURls.BatchURLs {
-//		delURLs = fmt.Sprintf("%s, %s", delURLs, urlEl.ShortURL)
-//	}
-//	requestDelURLs := fmt.Sprintf("[%s]", delURLs)
-//	requestDel := resty.New().R()
-//	requestDel.URL = srv.URL + "/api/users/urls"
-//	requestDel.Method = http.MethodDelete
-//	requestDel.SetBody(requestDelURLs)
-//	requestDel.SetCookie(&http.Cookie{
-//		Name:  "Token",
-//		Value: token,
-//	})
-//
-//	respDel, err := requestDel.Send()
-//	assert.NoError(t, err)
-//
-//	assert.Equal(t, http.StatusAccepted, respDel.StatusCode())
-//
-//}
+func TestAPIMarkAsDeletedURLs(t *testing.T) {
+	router := chi.NewRouter()
+	randURLsAmount := 120
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg, logger)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
+
+	router.Post("/",
+		func(w http.ResponseWriter, r *http.Request) {
+			CreateShortURL(w, r, cfg, storage, logger)
+		})
+	router.Delete("/api/user/urls",
+		func(w http.ResponseWriter, r *http.Request) {
+			APIMarkAsDeletedURLs(w, r, cfg, storage, logger)
+		})
+	router.Get("/{id}",
+		func(w http.ResponseWriter, r *http.Request) {
+			GetFullURL(w, r, cfg, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	newURLsForDelete := make([]string, 0, randURLsAmount)
+	for i := 0; i < randURLsAmount; i++ {
+		randURL := createRandomURL()
+		newURLsForDelete = append(newURLsForDelete, randURL)
+	}
+
+	var shortURLs []string
+	token, err := auth.BuildJWTString(999, cfg.SecretKey, 24*time.Hour)
+	assert.NoError(t, err)
+
+	logger.Debug("URLS", zap.Any("URLS", newURLsForDelete))
+	for _, origURL := range newURLsForDelete {
+		t.Run("create url", func(t *testing.T) {
+			request := resty.New().R()
+			request.URL = srv.URL + "/"
+			request.Method = http.MethodPost
+
+			request.SetHeader("Content-Type", "text/plain")
+			request.SetBody(origURL)
+			request.SetCookie(&http.Cookie{Name: "Token", Value: token})
+			resp, err := request.Send()
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusCreated, resp.StatusCode())
+
+			shortURLs = append(shortURLs, strings.Split(string(resp.Body()), "/")[3])
+		})
+	}
+
+	delRequest := resty.New().R()
+	delRequest.Method = http.MethodDelete
+	delRequest.URL = srv.URL + "/api/user/urls"
+	delRequest.SetCookie(&http.Cookie{Name: "Token", Value: token})
+	delRequest.SetBody(shortURLs)
+
+	delResp, err := delRequest.Send()
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusAccepted, delResp.StatusCode())
+
+	checkClient := resty.New()
+	checkClient.SetRedirectPolicy(resty.NoRedirectPolicy())
+	checkRequest := checkClient.R()
+	checkRequest.Method = http.MethodGet
+
+	triesCount := 5 // Количество попыток если вдруг запросим урл который ещё не удалился
+	for _, shortURL := range shortURLs {
+		if triesCount == 0 {
+			logger.Debug("tries for check URLs delete is 0")
+			return
+		}
+		checkRequest.URL = srv.URL + "/" + shortURL
+		checkResp, err := checkRequest.Send()
+		if err != nil {
+			time.Sleep(time.Second)
+			logger.Debug("error checking deleted url", zap.Error(err))
+			triesCount--
+			continue
+		}
+		logger.Debug("url is gone", zap.String("URL", shortURL))
+		assert.Equal(t, http.StatusGone, checkResp.StatusCode())
+	}
+
+}
 
 // randomString генерирует случайную строку заданной длины
 func randomString(length int) string {
@@ -497,6 +501,7 @@ func createRandomURL() string {
 	scheme := "https"
 	host := randomString(10) + ".example." + randomString(3)
 	path := "/" + randomString(5)
+	time.Sleep(5 * time.Millisecond)
 
 	u := &url.URL{
 		Scheme: scheme,
