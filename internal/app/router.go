@@ -33,6 +33,10 @@ func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Lo
 			r.Post("/", wrapper(handlers.APICreateShortURL, cfg, storage, logger))
 			r.Post("/batch", wrapper(handlers.APICreateBatchURLs, cfg, storage, logger))
 		})
+		r.Route("/user", func(r chi.Router) {
+			r.Get("/urls", wrapper(handlers.GetUserURLs, cfg, storage, logger))
+			r.Delete("/urls", wrapper(handlers.APIMarkAsDeletedURLs, cfg, storage, logger))
+		})
 	})
 
 	return router

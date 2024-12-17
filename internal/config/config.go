@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"os"
+	"time"
 
 	storageConfig "github.com/Melikhov-p/url-minimise/internal/repository/config"
 	databaseConfig "github.com/Melikhov-p/url-minimise/internal/repository/database/config"
@@ -23,19 +24,22 @@ const (
 )
 
 type Config struct {
-	StorageMode  storage.StorageType
-	Storage      storageConfig.Config
-	ShortURLSize int
-	ServerAddr   string
-	ResultAddr   string
+	StorageMode      storage.StorageType
+	Storage          storageConfig.Config
+	JWTTokenLifeTime time.Duration
+	ShortURLSize     int
+	ServerAddr       string
+	ResultAddr       string
+	SecretKey        string
 }
 
 // NewConfig Возвращает указатель на конфиг, withoutFlags нужен для тестов, чтобы не читать флаги постоянно.
 func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 	cfg := &Config{
-		ServerAddr:  defaultSrvAddr,
-		ResultAddr:  defaultResAddr,
-		StorageMode: defaultStorageMode,
+		ServerAddr:       defaultSrvAddr,
+		ResultAddr:       defaultResAddr,
+		StorageMode:      defaultStorageMode,
+		JWTTokenLifeTime: 24 * time.Hour,
 		Storage: storageConfig.Config{
 			InMemory: &memoryConfig.Config{},
 			FileStorage: &fileConfig.Config{
@@ -47,6 +51,7 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 			},
 		},
 		ShortURLSize: defaultShortURLSize,
+		SecretKey:    "",
 	}
 	if withoutFlags {
 		return cfg

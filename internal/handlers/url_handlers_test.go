@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Melikhov-p/url-minimise/internal/auth"
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/middlewares"
@@ -70,7 +71,7 @@ func TestCreateShortURL(t *testing.T) {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
-			storage, err := repository.NewStorage(cfg)
+			storage, err := repository.NewStorage(cfg, logger)
 			assert.NoError(t, err)
 			CreateShortURL(w, request, cfg, storage, logger)
 
@@ -114,7 +115,7 @@ func TestGetFullURL(t *testing.T) {
 	}
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
@@ -133,7 +134,7 @@ func TestHappyPath(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -201,7 +202,7 @@ func TestAPICreateShortURL(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -264,7 +265,7 @@ func TestCompressor(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -324,7 +325,7 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -394,6 +395,96 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 	}
 }
 
+func TestAPIMarkAsDeletedURLs(t *testing.T) {
+	router := chi.NewRouter()
+	randURLsAmount := 120
+	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg, logger)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{Logger: logger}
+	router.Use(
+		middleware.WithLogging,
+	)
+
+	router.Post("/",
+		func(w http.ResponseWriter, r *http.Request) {
+			CreateShortURL(w, r, cfg, storage, logger)
+		})
+	router.Delete("/api/user/urls",
+		func(w http.ResponseWriter, r *http.Request) {
+			APIMarkAsDeletedURLs(w, r, cfg, storage, logger)
+		})
+	router.Get("/{id}",
+		func(w http.ResponseWriter, r *http.Request) {
+			GetFullURL(w, r, cfg, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
+
+	newURLsForDelete := make([]string, 0, randURLsAmount)
+	for i := 0; i < randURLsAmount; i++ {
+		randURL := createRandomURL()
+		newURLsForDelete = append(newURLsForDelete, randURL)
+	}
+
+	var shortURLs []string
+	token, err := auth.BuildJWTString(999, cfg.SecretKey, 24*time.Hour)
+	assert.NoError(t, err)
+
+	logger.Debug("URLS", zap.Any("URLS", newURLsForDelete))
+	for _, origURL := range newURLsForDelete {
+		t.Run("create url", func(t *testing.T) {
+			request := resty.New().R()
+			request.URL = srv.URL + "/"
+			request.Method = http.MethodPost
+
+			request.SetHeader("Content-Type", "text/plain")
+			request.SetBody(origURL)
+			request.SetCookie(&http.Cookie{Name: "Token", Value: token})
+			resp, err := request.Send()
+			assert.NoError(t, err)
+			assert.Equal(t, http.StatusCreated, resp.StatusCode())
+
+			shortURLs = append(shortURLs, strings.Split(string(resp.Body()), "/")[3])
+		})
+	}
+
+	delRequest := resty.New().R()
+	delRequest.Method = http.MethodDelete
+	delRequest.URL = srv.URL + "/api/user/urls"
+	delRequest.SetCookie(&http.Cookie{Name: "Token", Value: token})
+	delRequest.SetBody(shortURLs)
+
+	delResp, err := delRequest.Send()
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusAccepted, delResp.StatusCode())
+
+	checkClient := resty.New()
+	checkClient.SetRedirectPolicy(resty.NoRedirectPolicy())
+	checkRequest := checkClient.R()
+	checkRequest.Method = http.MethodGet
+
+	triesCount := 5 // Количество попыток если вдруг запросим урл который ещё не удалился
+	for _, shortURL := range shortURLs {
+		if triesCount == 0 {
+			logger.Debug("tries for check URLs delete is 0")
+			return
+		}
+		checkRequest.URL = srv.URL + "/" + shortURL
+		checkResp, err := checkRequest.Send()
+		if err != nil {
+			time.Sleep(time.Second)
+			logger.Debug("error checking deleted url", zap.Error(err))
+			triesCount--
+			continue
+		}
+		logger.Debug("url is gone", zap.String("URL", shortURL))
+		assert.Equal(t, http.StatusGone, checkResp.StatusCode())
+	}
+
+}
+
 // randomString генерирует случайную строку заданной длины
 func randomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -410,6 +501,7 @@ func createRandomURL() string {
 	scheme := "https"
 	host := randomString(10) + ".example." + randomString(3)
 	path := "/" + randomString(5)
+	time.Sleep(5 * time.Millisecond)
 
 	u := &url.URL{
 		Scheme: scheme,

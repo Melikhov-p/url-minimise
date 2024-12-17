@@ -11,13 +11,18 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
-func NewStorageURL(ctx context.Context, fullURL string, s Storage, cfg *config.Config) (*models.StorageURL, error) {
+func NewStorageURL(ctx context.Context,
+	fullURL string, s Storage,
+	cfg *config.Config,
+	userID int) (*models.StorageURL, error) {
 	short, err := randomString(ctx, cfg.ShortURLSize, s)
 
 	if err == nil {
 		return &models.StorageURL{
 			ShortURL:    short,
 			OriginalURL: fullURL,
+			UserID:      userID,
+			DeletedFlag: false,
 		}, nil
 	}
 	return nil, err
@@ -27,7 +32,8 @@ func NewStorageMultiURL(
 	ctx context.Context,
 	fullURLs []string,
 	s Storage,
-	cfg *config.Config) ([]*models.StorageURL, error) {
+	cfg *config.Config,
+	userID int) ([]*models.StorageURL, error) {
 	newURLs := make([]*models.StorageURL, 0, len(fullURLs))
 
 	for _, url := range fullURLs {
@@ -38,6 +44,7 @@ func NewStorageMultiURL(
 		newURLs = append(newURLs, &models.StorageURL{
 			ShortURL:    short,
 			OriginalURL: url,
+			UserID:      userID,
 		})
 	}
 

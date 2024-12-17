@@ -19,8 +19,9 @@ func AddURL(
 	logger *zap.Logger,
 	originalURL string,
 	cfg *config.Config,
+	userID int,
 ) (*models.StorageURL, error) {
-	newURL, err := repository.NewStorageURL(ctx, originalURL, storage, cfg)
+	newURL, err := repository.NewStorageURL(ctx, originalURL, storage, cfg, userID)
 	if err != nil {
 		logger.Error("error creating short URL", zap.Error(err))
 		return nil, fmt.Errorf("error creating short URL model %w", err)
@@ -37,4 +38,22 @@ func AddURL(
 	}
 
 	return newURL, nil
+}
+
+func MarkAsDeleted(
+	_ context.Context,
+	storage repository.Storage,
+	logger *zap.Logger,
+	delURLs []string,
+	_ *config.Config,
+	user *models.User,
+) error {
+	ctx := context.Background()
+
+	err := storage.MarkAsDeletedURL(ctx, delURLs, user.ID, logger)
+	if err != nil {
+		return fmt.Errorf("error mark URL deleted %w", err)
+	}
+
+	return nil
 }

@@ -18,7 +18,7 @@ type FileStorage struct {
 
 // SetInMemory Жесткая установка связки в in-memory хранилище при загрузке данных из файла.
 func (s *FileStorage) SetInMemory(shortURL string, newURL *models.StorageURL) {
-	s.db[shortURL] = newURL
+	s.urls[shortURL] = newURL
 }
 
 func (s *FileStorage) Save(record *models.StorageURL) error {

@@ -19,7 +19,7 @@ func main() {
 
 	cfg := config.NewConfig(logger, false) // Возвращает конфиг с прочитанными флагами и энвами
 
-	store, err := repository.NewStorage(cfg)
+	store, err := repository.NewStorage(cfg, logger)
 	if err != nil {
 		logger.Fatal("error getting new storage", zap.Error(err))
 	}
