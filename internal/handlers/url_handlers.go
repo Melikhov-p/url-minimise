@@ -48,10 +48,10 @@ func CreateShortURL(
 	}
 
 	token := tokenCookie.String()
-	user, err := service.AuthUserByToken(token, storage, logger)
+	user, err := service.AuthUserByToken(token, storage, logger, cfg)
 	if err != nil {
 		logger.Debug("unauthorized user", zap.Error(err))
-		user, err = service.AddNewUser(ctx, storage)
+		user, err = service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Error("error creating new user", zap.Error(err))
@@ -143,10 +143,10 @@ func APICreateShortURL(
 	}
 
 	token := tokenCookie.String()
-	user, err := service.AuthUserByToken(token, storage, logger)
+	user, err := service.AuthUserByToken(token, storage, logger, cfg)
 	if err != nil {
 		logger.Debug("unauthorized user", zap.Error(err))
-		user, err = service.AddNewUser(ctx, storage)
+		user, err = service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Error("error creating new user", zap.Error(err))
@@ -234,10 +234,10 @@ func APICreateBatchURLs(
 	}
 
 	token := tokenCookie.String()
-	user, err := service.AuthUserByToken(token, storage, logger)
+	user, err := service.AuthUserByToken(token, storage, logger, cfg)
 	if err != nil {
 		logger.Debug("unauthorized user", zap.Error(err))
-		user, err = service.AddNewUser(ctx, storage)
+		user, err = service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			logger.Error("error creating new user", zap.Error(err))
@@ -289,6 +289,50 @@ func APICreateBatchURLs(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func APIMarkAsDeletedURLs(
+	w http.ResponseWriter,
+	r *http.Request,
+	cfg *config.Config,
+	storage repository.Storage,
+	logger *zap.Logger,
+) {
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	tokenCookie, err := r.Cookie("Token")
+	if err != nil && !errors.Is(err, http.ErrNoCookie) {
+		w.WriteHeader(http.StatusBadRequest)
+		logger.Error("error getting token cookie", zap.Error(err))
+		return
+	}
+	if errors.Is(err, http.ErrNoCookie) {
+		w.WriteHeader(http.StatusUnauthorized)
+		logger.Info("unauthorized request")
+		return
+	}
+
+	_, err = service.AuthUserByToken(tokenCookie.Value, storage, logger, cfg)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		logger.Error("error authenticate user", zap.Error(err))
+		return
+	}
+
+	var shortURLs []string
+	dec := json.NewDecoder(r.Body)
+	if err = dec.Decode(&shortURLs); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		logger.Error("error decoding delete request", zap.Error(err))
+		return
+	}
+
+	ctx := r.Context()
+	service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func PingDatabase(

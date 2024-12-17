@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
@@ -36,6 +37,34 @@ func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL)
 	}
 
 	return nil
+}
+
+func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, inCh chan string) chan MarkDeleteResult {
+	outCh := make(chan MarkDeleteResult)
+
+	go func() {
+		defer close(outCh)
+
+		for url := range inCh {
+			if !s.CheckShort(context.Background(), url) {
+				outCh <- MarkDeleteResult{
+					URL: url,
+					Res: false,
+					Err: ErrNotFound,
+				}
+			} else {
+				log.Printf("deleted url %s", url)
+				s.urls[url].DeletedFlag = true
+				outCh <- MarkDeleteResult{
+					URL: url,
+					Res: true,
+					Err: nil,
+				}
+			}
+		}
+	}()
+
+	return outCh
 }
 
 func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string) (string, error) {

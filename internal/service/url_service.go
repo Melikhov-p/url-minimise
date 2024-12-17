@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -38,4 +39,61 @@ func AddURL(
 	}
 
 	return newURL, nil
+}
+
+func MarkAsDeleted(
+	ctx context.Context,
+	storage repository.Storage,
+	logger *zap.Logger,
+	shortURLs []string,
+	_ *config.Config,
+) {
+	inCh := generator(shortURLs...)
+	ch1 := storage.MarkAsDeletedURL(ctx, inCh)
+	ch2 := storage.MarkAsDeletedURL(ctx, inCh)
+
+	for res := range fanIn(ch1, ch2) {
+		logger.Info("request delete URL",
+			zap.Bool("result", res.Res),
+			zap.Error(res.Err),
+			zap.String("URL", res.URL))
+	}
+}
+
+func generator(urls ...string) chan string {
+	outCh := make(chan string)
+	go func() {
+		defer close(outCh)
+		for _, url := range urls {
+			outCh <- url
+		}
+	}()
+
+	return outCh
+}
+
+func fanIn(chans ...chan storagePkg.MarkDeleteResult) chan storagePkg.MarkDeleteResult {
+	resultCh := make(chan storagePkg.MarkDeleteResult)
+
+	wg := sync.WaitGroup{}
+
+	for _, ch := range chans {
+		innerCh := ch
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for x := range innerCh {
+				resultCh <- x
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	return resultCh
 }

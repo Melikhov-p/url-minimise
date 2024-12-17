@@ -70,7 +70,7 @@ func TestCreateShortURL(t *testing.T) {
 		t.Run(test.method, func(t *testing.T) {
 			request := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
 			w := httptest.NewRecorder()
-			storage, err := repository.NewStorage(cfg)
+			storage, err := repository.NewStorage(cfg, logger)
 			assert.NoError(t, err)
 			CreateShortURL(w, request, cfg, storage, logger)
 
@@ -114,7 +114,7 @@ func TestGetFullURL(t *testing.T) {
 	}
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestHappyPath(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -201,7 +201,7 @@ func TestAPICreateShortURL(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -264,7 +264,7 @@ func TestCompressor(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(
@@ -324,7 +324,7 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 	router := chi.NewRouter()
 
 	cfg, logger := setupTest(t)
-	storage, err := repository.NewStorage(cfg)
+	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
 	middleware := middlewares.Middleware{Logger: logger}
 	router.Use(

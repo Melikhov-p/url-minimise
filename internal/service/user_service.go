@@ -5,14 +5,19 @@ import (
 	"fmt"
 
 	"github.com/Melikhov-p/url-minimise/internal/auth"
+	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"go.uber.org/zap"
 )
 
-func AuthUserByToken(tokenString string, s repository.Storage, logger *zap.Logger) (*models.User, error) {
+func AuthUserByToken(tokenString string,
+	s repository.Storage,
+	logger *zap.Logger,
+	cfg *config.Config,
+) (*models.User, error) {
 	emptyUser := repository.NewEmptyUser()
-	userID, err := auth.GetUserID(tokenString)
+	userID, err := auth.GetUserID(tokenString, cfg.SecretKey)
 	logger.Debug("auth by token", zap.String("TOKEN", tokenString), zap.Int("ID", userID))
 	if err != nil {
 		return emptyUser, fmt.Errorf("error getting user ID from token %w", err)
@@ -31,13 +36,13 @@ func AuthUserByToken(tokenString string, s repository.Storage, logger *zap.Logge
 	return emptyUser, nil
 }
 
-func AddNewUser(ctx context.Context, s repository.Storage) (*models.User, error) {
+func AddNewUser(ctx context.Context, s repository.Storage, cfg *config.Config) (*models.User, error) {
 	user, err := s.AddUser(ctx)
 	if err != nil {
 		return repository.NewEmptyUser(), fmt.Errorf("error creating new user in storage %w", err)
 	}
 
-	user.Service.Token, err = BuildUserToken(user.ID)
+	user.Service.Token, err = BuildUserToken(user.ID, cfg)
 	if err != nil {
 		return user, fmt.Errorf("error creating token for new user %w", err)
 	}
@@ -46,9 +51,9 @@ func AddNewUser(ctx context.Context, s repository.Storage) (*models.User, error)
 	return user, nil
 }
 
-func BuildUserToken(userID int) (string, error) {
+func BuildUserToken(userID int, cfg *config.Config) (string, error) {
 	// BuildUserToken return token string for userID int
-	token, err := auth.BuildJWTString(userID)
+	token, err := auth.BuildJWTString(userID, cfg.SecretKey, cfg.JWTTokenLifeTime)
 	if err != nil {
 		return "", fmt.Errorf("error creating token for user %w", err)
 	}

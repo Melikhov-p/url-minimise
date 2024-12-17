@@ -36,7 +36,7 @@ func GetUserURLs(
 		return
 	}
 
-	user, err := service.AuthUserByToken(tokenCookie.Value, storage, logger)
+	user, err := service.AuthUserByToken(tokenCookie.Value, storage, logger, cfg)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		logger.Error("error authenticate user", zap.Error(err))

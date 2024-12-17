@@ -8,16 +8,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Melikhov-p/url-minimise/internal/auth"
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/storage"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"go.uber.org/zap"
 )
 
 type Storage interface {
 	AddURL(context.Context, *models.StorageURL) (string, error)
 	AddURLs(context.Context, []*models.StorageURL) error
+	MarkAsDeletedURL(context.Context, chan string) chan storage.MarkDeleteResult
 	GetFullURL(context.Context, string) (string, error)
 	GetShortURL(context.Context, *sql.Tx, string) (string, error)
 	CheckShort(context.Context, string) bool
@@ -30,9 +33,14 @@ type StorageSaver interface { // Для хранилищ, которым нуж�
 	Save(*models.StorageURL) error
 }
 
-func NewStorage(cfg *config.Config) (Storage, error) {
+func NewStorage(cfg *config.Config, _ *zap.Logger) (Storage, error) {
 	switch cfg.StorageMode {
 	case storage.BaseStorage:
+		key, err := auth.GenerateAuthKey()
+		if err != nil {
+			return nil, fmt.Errorf("error generating secret key for storage %w", err)
+		}
+		cfg.SecretKey = key
 		return storage.NewMemoryStorage(), nil
 	case storage.StorageFromFile:
 		file, err := os.OpenFile(cfg.Storage.FileStorage.FilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
@@ -57,6 +65,11 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 			store.SetInMemory(element.ShortURL, &element)
 		}
 
+		key, err := auth.GenerateAuthKey()
+		if err != nil {
+			return nil, fmt.Errorf("error generating secret key for storage %w", err)
+		}
+		cfg.SecretKey = key
 		return store, nil
 	case storage.StorageInDatabase:
 		db, err := sql.Open("pgx", cfg.Storage.Database.DSN)
@@ -77,6 +90,12 @@ func NewStorage(cfg *config.Config) (Storage, error) {
 		if err = makeMigrations(cfg, store.DB); err != nil {
 			return nil, fmt.Errorf("error making migrations %w", err)
 		}
+
+		key, err := store.GetSecretKey(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error getting secret key for database %w", err)
+		}
+		cfg.SecretKey = key
 
 		return store, nil
 	}

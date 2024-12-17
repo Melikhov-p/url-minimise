@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Melikhov-p/url-minimise/internal/auth"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
@@ -98,6 +99,35 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 		return fmt.Errorf("error commiting transaction %w", err)
 	}
 	return nil
+}
+
+func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan string) chan MarkDeleteResult {
+	outCh := make(chan MarkDeleteResult)
+
+	go func() {
+		defer close(outCh)
+		ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+
+		for url := range inCh {
+			query := `UPDATE url SET is_deleted=true WHERE short_url = $1`
+			if _, err := db.DB.ExecContext(ctx, query, url); err != nil {
+				outCh <- MarkDeleteResult{
+					URL: url,
+					Res: false,
+					Err: fmt.Errorf("error executing context for delete query %w", err),
+				}
+			} else {
+				outCh <- MarkDeleteResult{
+					URL: url,
+					Res: true,
+					Err: nil,
+				}
+			}
+		}
+		defer cancel()
+	}()
+
+	return outCh
 }
 
 func (db *DatabaseStorage) GetFullURL(ctx context.Context, shortURL string) (string, error) {
@@ -221,4 +251,44 @@ func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*
 	}
 
 	return urls, nil
+}
+
+func (db *DatabaseStorage) GetSecretKey(ctx context.Context) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return "", fmt.Errorf("error starting transaction for secret kay %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	query := `SELECT key FROM secret_key`
+
+	row := tx.QueryRowContext(ctx, query)
+
+	var key string
+	if err = row.Scan(&key); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("error scanning secret key row from db %w", err)
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		key, err = auth.GenerateAuthKey()
+		if err != nil {
+			return "", fmt.Errorf("error generating new secret key %w", err)
+		}
+
+		insertQuery := `INSERT INTO secret_key (key) VALUES ($1)`
+		_, err = tx.ExecContext(ctx, insertQuery, key)
+		if err != nil {
+			return "", fmt.Errorf("error exec context %w", err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return "", fmt.Errorf("error commiting %w", err)
+	}
+	return key, nil
 }
