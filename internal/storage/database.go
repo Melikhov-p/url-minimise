@@ -101,7 +101,7 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	return nil
 }
 
-func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan string) chan MarkDeleteResult {
+func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan MarkDeleteURL) chan MarkDeleteResult {
 	outCh := make(chan MarkDeleteResult)
 
 	go func() {
@@ -109,16 +109,16 @@ func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan strin
 		ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 
 		for url := range inCh {
-			query := `UPDATE url SET is_deleted=true WHERE short_url = $1`
-			if _, err := db.DB.ExecContext(ctx, query, url); err != nil {
+			query := `UPDATE url SET is_deleted=true WHERE short_url = $1 AND user_id = $2`
+			if _, err := db.DB.ExecContext(ctx, query, url.ShortURL, url.User.ID); err != nil {
 				outCh <- MarkDeleteResult{
-					URL: url,
+					URL: url.ShortURL,
 					Res: false,
 					Err: fmt.Errorf("error executing context for delete query %w", err),
 				}
 			} else {
 				outCh <- MarkDeleteResult{
-					URL: url,
+					URL: url.ShortURL,
 					Res: true,
 					Err: nil,
 				}
@@ -130,23 +130,20 @@ func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, inCh chan strin
 	return outCh
 }
 
-func (db *DatabaseStorage) GetFullURL(ctx context.Context, shortURL string) (string, error) {
+func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models.StorageURL, error) {
 	query := `
-		SELECT original_url FROM url WHERE short_url = $1
+		SELECT * FROM url WHERE short_url = $1
 	`
 
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
 
-	var fullURL string
-	if err := db.DB.QueryRowContext(ctx, query, shortURL).Scan(&fullURL); err != nil {
-		return "", fmt.Errorf("error scanning query row full url %w", err)
+	var u models.StorageURL
+	if err := db.DB.QueryRowContext(ctx, query, shortURL).Scan(&u); err != nil {
+		return nil, fmt.Errorf("error scanning query row full url %w", err)
 	}
 
-	if fullURL == "" {
-		return fullURL, ErrNotFound
-	}
-	return fullURL, nil
+	return &u, nil
 }
 
 func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL string) (string, error) {
@@ -170,7 +167,7 @@ func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL 
 }
 
 func (db *DatabaseStorage) CheckShort(ctx context.Context, shortURL string) bool {
-	if _, err := db.GetFullURL(ctx, shortURL); err != nil {
+	if _, err := db.GetURL(ctx, shortURL); err != nil {
 		return false
 	}
 

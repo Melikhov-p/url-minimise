@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
@@ -39,24 +38,23 @@ func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL)
 	return nil
 }
 
-func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, inCh chan string) chan MarkDeleteResult {
+func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, inCh chan MarkDeleteURL) chan MarkDeleteResult {
 	outCh := make(chan MarkDeleteResult)
 
 	go func() {
 		defer close(outCh)
 
 		for url := range inCh {
-			if !s.CheckShort(context.Background(), url) {
+			if !s.CheckShort(context.Background(), url.ShortURL) {
 				outCh <- MarkDeleteResult{
-					URL: url,
+					URL: url.ShortURL,
 					Res: false,
 					Err: ErrNotFound,
 				}
 			} else {
-				log.Printf("deleted url %s", url)
-				s.urls[url].DeletedFlag = true
+				s.urls[url.ShortURL].DeletedFlag = true
 				outCh <- MarkDeleteResult{
-					URL: url,
+					URL: url.ShortURL,
 					Res: true,
 					Err: nil,
 				}
@@ -80,12 +78,12 @@ func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string
 	return "", fmt.Errorf("can not found short url for original %w", ErrNotFound)
 }
 
-func (s *MemoryStorage) GetFullURL(_ context.Context, shortURL string) (string, error) {
+func (s *MemoryStorage) GetURL(_ context.Context, shortURL string) (*models.StorageURL, error) {
 	searchedElem := s.urls[shortURL]
 	if searchedElem != nil {
-		return searchedElem.OriginalURL, nil
+		return searchedElem, nil
 	}
-	return "", fmt.Errorf("can not found original url for short %w", ErrNotFound)
+	return nil, fmt.Errorf("can not found original url for short %w", ErrNotFound)
 }
 
 func (s *MemoryStorage) CheckShort(_ context.Context, short string) bool { return s.urls[short] != nil }

@@ -46,9 +46,10 @@ func MarkAsDeleted(
 	storage repository.Storage,
 	logger *zap.Logger,
 	shortURLs []string,
+	user *models.User,
 	_ *config.Config,
 ) {
-	inCh := generator(shortURLs...)
+	inCh := generator(user, shortURLs...)
 	ch1 := storage.MarkAsDeletedURL(ctx, inCh)
 	ch2 := storage.MarkAsDeletedURL(ctx, inCh)
 
@@ -60,12 +61,15 @@ func MarkAsDeleted(
 	}
 }
 
-func generator(urls ...string) chan string {
-	outCh := make(chan string)
+func generator(user *models.User, urls ...string) chan storagePkg.MarkDeleteURL {
+	outCh := make(chan storagePkg.MarkDeleteURL)
 	go func() {
 		defer close(outCh)
 		for _, url := range urls {
-			outCh <- url
+			outCh <- storagePkg.MarkDeleteURL{
+				ShortURL: url,
+				User:     user,
+			}
 		}
 	}()
 

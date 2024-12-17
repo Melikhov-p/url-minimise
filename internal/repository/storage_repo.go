@@ -20,8 +20,8 @@ import (
 type Storage interface {
 	AddURL(context.Context, *models.StorageURL) (string, error)
 	AddURLs(context.Context, []*models.StorageURL) error
-	MarkAsDeletedURL(context.Context, chan string) chan storage.MarkDeleteResult
-	GetFullURL(context.Context, string) (string, error)
+	MarkAsDeletedURL(context.Context, chan storage.MarkDeleteURL) chan storage.MarkDeleteResult
+	GetURL(context.Context, string) (*models.StorageURL, error)
 	GetShortURL(context.Context, *sql.Tx, string) (string, error)
 	CheckShort(context.Context, string) bool
 	Ping(context.Context) error

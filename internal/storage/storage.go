@@ -1,6 +1,10 @@
 package storage
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/Melikhov-p/url-minimise/internal/models"
+)
 
 type StorageType int
 
@@ -9,6 +13,11 @@ const (
 	StorageFromFile
 	StorageInDatabase
 )
+
+type MarkDeleteURL struct {
+	ShortURL string
+	User     *models.User
+}
 
 type MarkDeleteResult struct {
 	URL string

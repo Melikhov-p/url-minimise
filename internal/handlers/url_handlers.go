@@ -112,13 +112,19 @@ func GetFullURL(
 
 	id := chi.URLParam(r, "id")
 
-	matchURL, err := storage.GetFullURL(ctx, id)
+	matchURL, err := storage.GetURL(ctx, id)
 	if err != nil {
 		logger.Info("not found full URL by short", zap.String("shortURL", id))
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	w.Header().Set(`Location`, matchURL)
+
+	if matchURL.DeletedFlag {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
+
+	w.Header().Set(`Location`, matchURL.OriginalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -315,7 +321,7 @@ func APIMarkAsDeletedURLs(
 		return
 	}
 
-	_, err = service.AuthUserByToken(tokenCookie.Value, storage, logger, cfg)
+	user, err := service.AuthUserByToken(tokenCookie.Value, storage, logger, cfg)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		logger.Error("error authenticate user", zap.Error(err))
@@ -331,7 +337,7 @@ func APIMarkAsDeletedURLs(
 	}
 
 	ctx := r.Context()
-	service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg)
+	service.MarkAsDeleted(ctx, storage, logger, shortURLs, user, cfg)
 	w.WriteHeader(http.StatusAccepted)
 }
 
