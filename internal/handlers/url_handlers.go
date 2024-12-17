@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
@@ -346,7 +347,14 @@ func APIMarkAsDeletedURLs(
 	ctx := r.Context()
 
 	go func() {
-		if err = service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg, user); err != nil {
+		goroutinId := rand.Int()
+		logger.Debug("GOROUTIN START WITH PARAMS",
+			zap.Any("URLS", shortURLs),
+			zap.Int("GOROUTIN ID", goroutinId))
+		err = service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg, user)
+		logger.Debug("GOROUTIN END", zap.Int("GOROUTIN ID", goroutinId))
+
+		if err != nil {
 			logger.Error("error deleting url", zap.Error(err))
 		}
 	}()
