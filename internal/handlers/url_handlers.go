@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
@@ -346,11 +345,11 @@ func APIMarkAsDeletedURLs(
 
 	ctx := r.Context()
 
-	delURLs := models.DelURLs{
-		URLs: shortURLs,
-		Mu:   sync.Mutex{},
-	}
-	go service.MarkAsDeleted(ctx, storage, logger, &delURLs, cfg, user)
+	go func() {
+		if err = service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg, user); err != nil {
+			logger.Error("error deleting url", zap.Error(err))
+		}
+	}()
 	w.WriteHeader(http.StatusAccepted)
 }
 

@@ -44,18 +44,16 @@ func MarkAsDeleted(
 	_ context.Context,
 	storage repository.Storage,
 	logger *zap.Logger,
-	delURLs *models.DelURLs,
+	delURLs []string,
 	_ *config.Config,
 	user *models.User,
-) {
-	delURLs.Mu.Lock()
-
+) error {
 	ctx := context.Background()
 
-	err := storage.MarkAsDeletedURL(ctx, delURLs.URLs, user.ID, logger)
+	err := storage.MarkAsDeletedURL(ctx, delURLs, user.ID, logger)
 	if err != nil {
-		logger.Error("error mark as deleted urls", zap.Error(err))
+		return fmt.Errorf("error mark URL deleted %w", err)
 	}
 
-	delURLs.Mu.Unlock()
+	return nil
 }

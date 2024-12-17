@@ -110,7 +110,8 @@ func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context,
 	for i := range urls {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}
-	query := fmt.Sprintf("UPDATE url SET is_deleted=true WHERE short_url IN (%s) AND user_id = $%d", strings.Join(placeholders, ", "), len(urls)+1)
+	query := fmt.Sprintf("UPDATE url SET is_deleted=true WHERE short_url IN (%s) AND user_id = $%d",
+		strings.Join(placeholders, ", "), len(urls)+1)
 
 	// Передаем каждый URL как отдельный параметр
 	args := make([]interface{}, len(urls)+1)
