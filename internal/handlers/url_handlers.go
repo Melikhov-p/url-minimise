@@ -8,16 +8,13 @@ import (
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/contextkeys"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/Melikhov-p/url-minimise/internal/service"
 	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-)
-
-const (
-	contextUserKey = "user"
 )
 
 var (
@@ -46,7 +43,7 @@ func CreateShortURL(
 
 	ctx := r.Context()
 
-	user, ok := ctx.Value(contextUserKey).(*models.User)
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
 	if !ok {
 		logger.Error(errGetContextUser.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -86,7 +83,8 @@ func CreateShortURL(
 	w.WriteHeader(http.StatusCreated)
 	logger.Debug("add new URL from /",
 		zap.String("OriginalURL", newURL.OriginalURL),
-		zap.String("ShortURL", newURL.ShortURL))
+		zap.String("ShortURL", newURL.ShortURL),
+		zap.Int("USER_ID", user.ID))
 	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", newURL.ShortURL)
 
 	if err != nil {
@@ -139,7 +137,7 @@ func APICreateShortURL(
 
 	ctx := r.Context()
 
-	user, ok := ctx.Value(contextUserKey).(*models.User)
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
 	if !ok {
 		logger.Error(errGetContextUser.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -222,7 +220,7 @@ func APICreateBatchURLs(
 		return
 	}
 
-	user, ok := ctx.Value(contextUserKey).(*models.User)
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
 	if !ok {
 		logger.Error(errGetContextUser.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -290,7 +288,7 @@ func APIMarkAsDeletedURLs(
 	}
 
 	ctx := r.Context()
-	user, ok := ctx.Value(contextUserKey).(*models.User)
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
 	if !ok {
 		logger.Error("")
 		w.WriteHeader(http.StatusInternalServerError)

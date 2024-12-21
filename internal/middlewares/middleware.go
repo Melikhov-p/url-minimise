@@ -10,10 +10,10 @@ import (
 
 	compress "github.com/Melikhov-p/url-minimise/internal/compressor"
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/contextkeys"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/Melikhov-p/url-minimise/internal/service"
-	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
 )
 
@@ -34,8 +34,6 @@ type (
 		Cfg     *config.Config
 	}
 )
-
-const contextUserKey = "user"
 
 func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -140,17 +138,10 @@ func (m *Middleware) WithAuth(h http.Handler) http.Handler {
 		if !errors.Is(err, http.ErrNoCookie) {
 			token := tokenCookie.Value
 			user, err = service.AuthUserByToken(token, m.Storage, m.Logger, m.Cfg)
-			if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
+			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				m.Logger.Error("error authorizing user", zap.Error(err))
 				return
-			}
-			if errors.Is(err, jwt.ErrTokenExpired) {
-				user, err = service.AddNewUser(r.Context(), m.Storage, m.Cfg)
-				if err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					m.Logger.Error("error creating new user", zap.Error(err))
-				}
 			}
 		} else {
 			user, err = service.AddNewUser(r.Context(), m.Storage, m.Cfg)
@@ -160,7 +151,7 @@ func (m *Middleware) WithAuth(h http.Handler) http.Handler {
 			}
 		}
 
-		ctxWithUser := context.WithValue(r.Context(), contextUserKey, user)
+		ctxWithUser := context.WithValue(r.Context(), contextkeys.ContextUserKey, user)
 		h.ServeHTTP(w, r.WithContext(ctxWithUser))
 	})
 }
