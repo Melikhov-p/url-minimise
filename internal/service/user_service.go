@@ -18,7 +18,6 @@ func AuthUserByToken(tokenString string,
 ) (*models.User, error) {
 	emptyUser := repository.NewEmptyUser()
 	userID, err := auth.GetUserID(tokenString, cfg.SecretKey)
-	logger.Debug("auth by token", zap.Int("ID", userID))
 	if err != nil {
 		return emptyUser, fmt.Errorf("error getting user ID from token %w", err)
 	}

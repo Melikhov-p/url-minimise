@@ -53,7 +53,6 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 
 		user, ok := r.Context().Value("user").(*models.User)
 		if !ok {
-			m.Logger.Error("error getting user from context in logging middleware")
 			user = repository.NewEmptyUser()
 		}
 
@@ -144,11 +143,7 @@ func (m *Middleware) WithAuth(h http.Handler) http.Handler {
 				return
 			}
 		} else {
-			user, err = service.AddNewUser(r.Context(), m.Storage, m.Cfg)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				m.Logger.Error("error creating new user", zap.Error(err))
-			}
+			user = repository.NewEmptyUser()
 		}
 
 		ctxWithUser := context.WithValue(r.Context(), contextkeys.ContextUserKey, user)

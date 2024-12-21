@@ -45,9 +45,9 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, `
-		INSERT INTO URL (short_url, original_url, user_id, is_deleted)
+                INSERT INTO URL (short_url, original_url, user_id, is_deleted)
         VALUES ($1, $2, $3, $4)
-	`)
+        `)
 	if err != nil {
 		return "", fmt.Errorf("error creating prepared insert query %w", err)
 	}
@@ -81,8 +81,8 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	}
 
 	preparedInsert, err := tx.PrepareContext(ctx, fmt.Sprintf(`
-		INSERT INTO url (short_url, original_url, user_id, is_deleted) VALUES %s
-	`, strings.Join(placeholders, ", ")))
+                INSERT INTO url (short_url, original_url, user_id, is_deleted) VALUES %s
+        `, strings.Join(placeholders, ", ")))
 	if err != nil {
 		return fmt.Errorf("error prepare insert query for multi urls %w", err)
 	}
@@ -246,8 +246,8 @@ func (db *DatabaseStorage) UpdateTasksStatus(
 
 func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models.StorageURL, error) {
 	query := `
-		SELECT original_url, user_id, uuid, is_deleted  FROM url WHERE short_url = $1
-	`
+                SELECT original_url, user_id, uuid, is_deleted  FROM url WHERE short_url = $1
+        `
 
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
@@ -339,8 +339,8 @@ func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*
 	defer cancel()
 
 	query := `
-				SELECT short_url, original_url, uuid
-				FROM url WHERE user_id = $1;`
+                                SELECT short_url, original_url, uuid
+                                FROM url WHERE user_id = $1;`
 
 	rows, err := db.DB.QueryContext(ctx, query, userID)
 	if err != nil {

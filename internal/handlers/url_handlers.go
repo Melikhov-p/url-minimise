@@ -51,9 +51,12 @@ func CreateShortURL(
 	}
 
 	if !user.Service.IsAuthenticated {
-		logger.Error("error of authentication after creating new user")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		user, err = service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:  "Token",
@@ -144,10 +147,14 @@ func APICreateShortURL(
 		return
 	}
 
+	var err error
 	if !user.Service.IsAuthenticated {
-		logger.Error("error of authentication after creating new user")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		user, err = service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:  "Token",
@@ -227,10 +234,14 @@ func APICreateBatchURLs(
 		return
 	}
 
+	var err error
 	if !user.Service.IsAuthenticated {
-		logger.Error("error of authentication after creating new user")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+		user, err = service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 	http.SetCookie(w, &http.Cookie{
 		Name:  "Token",
@@ -292,6 +303,10 @@ func APIMarkAsDeletedURLs(
 	if !ok {
 		logger.Error("")
 		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if !user.Service.IsAuthenticated {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 

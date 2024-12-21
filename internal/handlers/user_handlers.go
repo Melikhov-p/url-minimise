@@ -30,6 +30,11 @@ func GetUserURLs(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	if !user.Service.IsAuthenticated {
+		logger.Debug("unAuthorized user")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	urls, err := storage.GetURLsByUserID(ctx, user.ID)
 	if err != nil {
