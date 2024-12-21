@@ -35,6 +35,8 @@ type (
 	}
 )
 
+const contextUserKey = "user"
+
 func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
@@ -51,6 +53,12 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 
 		duration := time.Since(startTime)
 
+		user, ok := r.Context().Value("user").(*models.User)
+		if !ok {
+			m.Logger.Error("error getting user from context in logging middleware")
+			user = repository.NewEmptyUser()
+		}
+
 		m.Logger.Info(
 			"",
 			zap.String("URI", r.RequestURI),
@@ -58,6 +66,7 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 			zap.Duration("DURATION", duration),
 			zap.Int("SIZE", responseData.size),
 			zap.Int("STATUS", responseData.status),
+			zap.Int("USER_ID", user.ID),
 		)
 	})
 }
@@ -151,7 +160,7 @@ func (m *Middleware) WithAuth(h http.Handler) http.Handler {
 			}
 		}
 
-		ctxWithUser := context.WithValue(r.Context(), "user", user)
+		ctxWithUser := context.WithValue(r.Context(), contextUserKey, user)
 		h.ServeHTTP(w, r.WithContext(ctxWithUser))
 	})
 }
