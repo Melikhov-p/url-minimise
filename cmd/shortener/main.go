@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const delWorkerPingInterval = 20 * time.Second
+const delWorkerPingInterval = 5 * time.Second
 
 func main() {
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
