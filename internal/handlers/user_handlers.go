@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/contextkeys"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"go.uber.org/zap"
@@ -23,9 +24,9 @@ func GetUserURLs(
 	}
 
 	ctx := r.Context()
-	user, ok := ctx.Value("user").(*models.User)
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
 	if !ok {
-		logger.Error("error priveniye tipa user")
+		logger.Error(errGetContextUser.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
