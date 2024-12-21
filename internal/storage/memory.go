@@ -6,20 +6,21 @@ import (
 	"fmt"
 
 	"github.com/Melikhov-p/url-minimise/internal/models"
-	"go.uber.org/zap"
 )
 
 type MemoryStorage struct {
-	urls       map[string]*models.StorageURL
-	users      map[int]*models.User
-	lastUserID int
+	urls        map[string]*models.StorageURL
+	users       map[int]*models.User
+	deleteTasks map[string]*models.DelTask // [shortURL]*models.DelTask
+	lastUserID  int
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		urls:       map[string]*models.StorageURL{},
-		users:      map[int]*models.User{},
-		lastUserID: 0,
+		urls:        map[string]*models.StorageURL{},
+		users:       map[int]*models.User{},
+		deleteTasks: map[string]*models.DelTask{},
+		lastUserID:  0,
 	}
 }
 
@@ -39,20 +40,54 @@ func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL)
 	return nil
 }
 
-func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context,
-	urls []string,
-	userID int,
-	logger *zap.Logger) error {
-	for _, url := range urls {
-		if s.urls[url] == nil {
+func (s *MemoryStorage) AddDeleteTask(shortURL []string, userID int) error {
+	for _, url := range shortURL {
+		s.deleteTasks[url] = &models.DelTask{
+			URL:    url,
+			UserID: userID,
+			Status: models.REGISTERED,
+		}
+	}
+
+	return nil
+}
+
+func (s *MemoryStorage) GetDeleteTasksWStatus(
+	_ context.Context,
+	status models.DelTaskStatus,
+) ([]*models.DelTask, error) {
+	outTasks := make([]*models.DelTask, 0)
+	for _, task := range s.deleteTasks {
+		if task.Status == status {
+			outTasks = append(outTasks, task)
+		}
+	}
+
+	return outTasks, nil
+}
+
+func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, tasks []*models.DelTask) error {
+	for _, task := range tasks {
+		if s.urls[task.URL] == nil {
 			return ErrNotFound
 		}
-		if s.urls[url].UserID == userID {
-			logger.Debug("mark as deleted url", zap.String("URL", url))
-			s.urls[url].DeletedFlag = true
-		} else {
-			return fmt.Errorf("not owner of %s", url)
+		if s.urls[task.URL].UserID != task.UserID {
+			return fmt.Errorf("not owner of %s", task.URL)
 		}
+
+		s.urls[task.URL].DeletedFlag = true
+	}
+
+	return nil
+}
+
+func (s *MemoryStorage) UpdateTasksStatus(
+	_ context.Context,
+	tasks []*models.DelTask,
+	newStatus models.DelTaskStatus,
+) error {
+	for _, task := range tasks {
+		s.deleteTasks[task.URL].Status = newStatus
 	}
 
 	return nil

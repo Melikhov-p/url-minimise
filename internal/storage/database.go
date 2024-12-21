@@ -10,7 +10,6 @@ import (
 
 	"github.com/Melikhov-p/url-minimise/internal/auth"
 	"github.com/Melikhov-p/url-minimise/internal/models"
-	"go.uber.org/zap"
 )
 
 type DatabaseStorage struct {
@@ -102,30 +101,147 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	return nil
 }
 
-func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context,
-	urls []string,
+func (db *DatabaseStorage) AddDeleteTask(
+	shortURL []string,
 	userID int,
-	logger *zap.Logger) error {
-	placeholders := make([]string, len(urls))
-	for i := range urls {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-	}
-	query := fmt.Sprintf("UPDATE url SET is_deleted=true WHERE short_url IN (%s) AND user_id = $%d",
-		strings.Join(placeholders, ", "), len(urls)+1)
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
 
-	// Передаем каждый URL как отдельный параметр
-	args := make([]interface{}, len(urls)+1)
-	for i, url := range urls {
-		args[i] = url
-	}
-	args[len(urls)] = userID
+	query := `INSERT INTO delete_task (short_url, user_id, status) VALUES ($1, $2, $3)`
+	tx, err := db.DB.Begin()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
-	if _, err := db.DB.ExecContext(ctx, query, args...); err != nil {
-		return fmt.Errorf("error executing context for update query: %w", err)
-	} else {
-		logger.Debug("updated record in database for URLs", zap.Strings("URLs", urls))
-		return nil
+	if err != nil {
+		return fmt.Errorf("error starting transaction for create delete task %w", err)
 	}
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	defer func() {
+		_ = stmt.Close()
+	}()
+
+	if err != nil {
+		return fmt.Errorf("error prepare context for create del task %w", err)
+	}
+
+	for _, url := range shortURL {
+		_, err = stmt.ExecContext(ctx, url, userID, models.REGISTERED)
+		if err != nil {
+			return fmt.Errorf("error exec context for create del task %w", err)
+		}
+	}
+
+	_ = tx.Commit()
+	return nil
+}
+
+func (db *DatabaseStorage) GetDeleteTasksWStatus(
+	ctx context.Context,
+	status models.DelTaskStatus,
+) ([]*models.DelTask, error) {
+	query := `SELECT short_url, user_id FROM delete_task WHERE status=$1`
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	rows, err := db.DB.QueryContext(ctx, query, status)
+	defer func() {
+		_ = rows.Close()
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("error exec context for delete tasks %w", err)
+	}
+
+	outTasks := make([]*models.DelTask, 0)
+	for rows.Next() {
+		var task models.DelTask
+		if err = rows.Scan(&task.URL, &task.UserID); err != nil {
+			return nil, fmt.Errorf("error scanning rows for tasks %w", err)
+		}
+		task.Status = status
+		outTasks = append(outTasks, &task)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows.Err() return error %w", err)
+	}
+
+	return outTasks, nil
+}
+
+func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, tasks []*models.DelTask) error {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	// Прохожу по таскам в цикле, а не отправляю батчем, потому что в теории у тасок может быть разный user_id
+	query := `UPDATE url SET is_deleted=true WHERE short_url=$1 AND user_id=$2`
+
+	tx, err := db.DB.Begin()
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if err != nil {
+		return fmt.Errorf("error starting transaction for delete %w", err)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	defer func() {
+		_ = stmt.Close()
+	}()
+	if err != nil {
+		return fmt.Errorf("error prepare context for update query %w", err)
+	}
+
+	for _, task := range tasks {
+		_, err = stmt.ExecContext(ctx, task.URL, task.UserID)
+		if err != nil {
+			return fmt.Errorf("error updating record for delete %w", err)
+		}
+	}
+
+	_ = tx.Commit()
+	return nil
+}
+
+func (db *DatabaseStorage) UpdateTasksStatus(
+	ctx context.Context,
+	tasks []*models.DelTask,
+	newStatus models.DelTaskStatus,
+) error {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	query := `UPDATE delete_task SET status=$1 WHERE short_url=$2`
+
+	tx, err := db.DB.Begin()
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	if err != nil {
+		return fmt.Errorf("error starting transaction for update status %w", err)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, query)
+	defer func() {
+		_ = stmt.Close()
+	}()
+	if err != nil {
+		return fmt.Errorf("error prepare context for update task status %w", err)
+	}
+
+	for _, task := range tasks {
+		_, err = stmt.ExecContext(ctx, newStatus, task.URL)
+		if err != nil {
+			return fmt.Errorf("error updating delete task status %w", err)
+		}
+	}
+
+	_ = tx.Commit()
+	return nil
 }
 
 func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models.StorageURL, error) {

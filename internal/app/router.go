@@ -14,10 +14,12 @@ import (
 func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
 	middleware := middlewares.Middleware{
-		Logger: logger,
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
 	}
-
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
 		middleware.GzipMiddleware,
 	)

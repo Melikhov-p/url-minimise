@@ -20,7 +20,10 @@ import (
 type Storage interface {
 	AddURL(context.Context, *models.StorageURL) (string, error)
 	AddURLs(context.Context, []*models.StorageURL) error
-	MarkAsDeletedURL(context.Context, []string, int, *zap.Logger) error
+	GetDeleteTasksWStatus(ctx context.Context, status models.DelTaskStatus) ([]*models.DelTask, error)
+	MarkAsDeletedURL(ctx context.Context, tasks []*models.DelTask) error
+	UpdateTasksStatus(ctx context.Context, tasks []*models.DelTask, newStatus models.DelTaskStatus) error
+	AddDeleteTask(shortURL []string, userID int) error
 	GetURL(context.Context, string) (*models.StorageURL, error)
 	GetShortURL(context.Context, *sql.Tx, string) (string, error)
 	CheckShort(context.Context, string) bool

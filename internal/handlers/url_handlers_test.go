@@ -66,17 +66,40 @@ func TestCreateShortURL(t *testing.T) {
 		},
 	}
 
+	router := chi.NewRouter()
+
 	cfg, logger := setupTest(t)
+	storage, err := repository.NewStorage(cfg, logger)
+	assert.NoError(t, err)
+	middleware := middlewares.Middleware{
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
+	}
+	router.Use(
+		middleware.WithAuth,
+		middleware.WithLogging,
+		middleware.GzipMiddleware,
+	)
+
+	router.Post("/",
+		func(w http.ResponseWriter, r *http.Request) {
+			CreateShortURL(w, r, cfg, storage, logger)
+		})
+
+	srv := httptest.NewServer(router)
+	defer srv.Close()
 	for _, test := range testCases {
 		t.Run(test.method, func(t *testing.T) {
-			request := httptest.NewRequest(test.method, "/", strings.NewReader(test.body))
-			w := httptest.NewRecorder()
-			storage, err := repository.NewStorage(cfg, logger)
+			r := resty.New().R()
+			r.URL = srv.URL + "/"
+			r.Method = test.method
+			r.Body = strings.NewReader(test.body)
+			resp, err := r.Send()
 			assert.NoError(t, err)
-			CreateShortURL(w, request, cfg, storage, logger)
 
-			assert.Equal(t, test.expectedCode, w.Code)
-			assert.Equal(t, test.expectedContentType, w.Header().Get(`Content-Type`))
+			assert.Equal(t, test.expectedCode, resp.StatusCode())
+			assert.Equal(t, test.expectedContentType, resp.Header().Get(`Content-Type`))
 		})
 	}
 }
@@ -136,9 +159,15 @@ func TestHappyPath(t *testing.T) {
 	cfg, logger := setupTest(t)
 	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
-	middleware := middlewares.Middleware{Logger: logger}
+	middleware := middlewares.Middleware{
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
+	}
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
+		middleware.GzipMiddleware,
 	)
 
 	router.Post("/",
@@ -204,9 +233,15 @@ func TestAPICreateShortURL(t *testing.T) {
 	cfg, logger := setupTest(t)
 	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
-	middleware := middlewares.Middleware{Logger: logger}
+	middleware := middlewares.Middleware{
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
+	}
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
+		middleware.GzipMiddleware,
 	)
 
 	router.Post("/api/shorten",
@@ -267,8 +302,13 @@ func TestCompressor(t *testing.T) {
 	cfg, logger := setupTest(t)
 	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
-	middleware := middlewares.Middleware{Logger: logger}
+	middleware := middlewares.Middleware{
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
+	}
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
 		middleware.GzipMiddleware,
 	)
@@ -327,9 +367,15 @@ func TestAPICreateBatchShortURL(t *testing.T) {
 	cfg, logger := setupTest(t)
 	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
-	middleware := middlewares.Middleware{Logger: logger}
+	middleware := middlewares.Middleware{
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
+	}
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
+		middleware.GzipMiddleware,
 	)
 
 	router.Post("/api/shorten/batch",
@@ -401,9 +447,15 @@ func TestAPIMarkAsDeletedURLs(t *testing.T) {
 	cfg, logger := setupTest(t)
 	storage, err := repository.NewStorage(cfg, logger)
 	assert.NoError(t, err)
-	middleware := middlewares.Middleware{Logger: logger}
+	middleware := middlewares.Middleware{
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
+	}
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
+		middleware.GzipMiddleware,
 	)
 
 	router.Post("/",

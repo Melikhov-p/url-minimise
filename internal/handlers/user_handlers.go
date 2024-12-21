@@ -2,13 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
-	"github.com/Melikhov-p/url-minimise/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -24,26 +22,14 @@ func GetUserURLs(
 		return
 	}
 
-	tokenCookie, err := r.Cookie("Token")
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusBadRequest)
-		logger.Error("error getting token cookie", zap.Error(err))
-		return
-	}
-	if errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusUnauthorized)
-		logger.Info("unauthorized request")
-		return
-	}
-
-	user, err := service.AuthUserByToken(tokenCookie.Value, storage, logger, cfg)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		logger.Error("error authenticate user", zap.Error(err))
-		return
-	}
-
 	ctx := r.Context()
+	user, ok := ctx.Value("user").(*models.User)
+	if !ok {
+		logger.Error("error priveniye tipa user")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	urls, err := storage.GetURLsByUserID(ctx, user.ID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
@@ -17,7 +16,13 @@ import (
 	"go.uber.org/zap"
 )
 
-const cookieToken = "Token"
+const (
+	contextUserKey = "user"
+)
+
+var (
+	errGetContextUser = errors.New("error getting user from context")
+)
 
 func CreateShortURL(
 	w http.ResponseWriter,
@@ -41,28 +46,11 @@ func CreateShortURL(
 
 	ctx := r.Context()
 
-	tokenCookie, err := r.Cookie(cookieToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusBadRequest)
-		logger.Error("can not read cookie from request", zap.Error(err))
+	user, ok := ctx.Value(contextUserKey).(*models.User)
+	if !ok {
+		logger.Error(errGetContextUser.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	var user *models.User
-	if !errors.Is(err, http.ErrNoCookie) {
-		token := tokenCookie.Value
-		user, err = service.AuthUserByToken(token, storage, logger, cfg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Error("error authorizing user")
-			return
-		}
-	} else {
-		user, err = service.AddNewUser(ctx, storage, cfg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Error("error creating new user", zap.Error(err))
-		}
 	}
 
 	if !user.Service.IsAuthenticated {
@@ -151,28 +139,11 @@ func APICreateShortURL(
 
 	ctx := r.Context()
 
-	tokenCookie, err := r.Cookie(cookieToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusBadRequest)
-		logger.Error("can not read cookie from request", zap.Error(err))
+	user, ok := ctx.Value(contextUserKey).(*models.User)
+	if !ok {
+		logger.Error(errGetContextUser.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	var user *models.User
-	if !errors.Is(err, http.ErrNoCookie) {
-		token := tokenCookie.Value
-		user, err = service.AuthUserByToken(token, storage, logger, cfg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Error("error authorizing user")
-			return
-		}
-	} else {
-		user, err = service.AddNewUser(ctx, storage, cfg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Error("error creating new user", zap.Error(err))
-		}
 	}
 
 	if !user.Service.IsAuthenticated {
@@ -251,28 +222,11 @@ func APICreateBatchURLs(
 		return
 	}
 
-	tokenCookie, err := r.Cookie(cookieToken)
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusBadRequest)
-		logger.Error("can not read cookie from request", zap.Error(err))
+	user, ok := ctx.Value(contextUserKey).(*models.User)
+	if !ok {
+		logger.Error(errGetContextUser.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	var user *models.User
-	if !errors.Is(err, http.ErrNoCookie) {
-		token := tokenCookie.Value
-		user, err = service.AuthUserByToken(token, storage, logger, cfg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Error("error authorizing user")
-			return
-		}
-	} else {
-		user, err = service.AddNewUser(ctx, storage, cfg)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			logger.Error("error creating new user", zap.Error(err))
-		}
 	}
 
 	if !user.Service.IsAuthenticated {
@@ -326,7 +280,7 @@ func APICreateBatchURLs(
 func APIMarkAsDeletedURLs(
 	w http.ResponseWriter,
 	r *http.Request,
-	cfg *config.Config,
+	_ *config.Config,
 	storage repository.Storage,
 	logger *zap.Logger,
 ) {
@@ -335,46 +289,26 @@ func APIMarkAsDeletedURLs(
 		return
 	}
 
-	tokenCookie, err := r.Cookie("Token")
-	if err != nil && !errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusBadRequest)
-		logger.Error("error getting token cookie", zap.Error(err))
-		return
-	}
-	if errors.Is(err, http.ErrNoCookie) {
-		w.WriteHeader(http.StatusUnauthorized)
-		logger.Info("unauthorized request")
-		return
-	}
-
-	user, err := service.AuthUserByToken(tokenCookie.Value, storage, logger, cfg)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		logger.Error("error authenticate user", zap.Error(err))
+	ctx := r.Context()
+	user, ok := ctx.Value(contextUserKey).(*models.User)
+	if !ok {
+		logger.Error("")
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	var shortURLs []string
 	dec := json.NewDecoder(r.Body)
-	if err = dec.Decode(&shortURLs); err != nil {
+	if err := dec.Decode(&shortURLs); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		logger.Error("error decoding delete request", zap.Error(err))
 		return
 	}
 
-	ctx := r.Context()
-
 	go func() {
-		goroutinID := rand.Int()
-		logger.Debug("GOROUTIN START WITH PARAMS",
-			zap.Any("URLS", shortURLs),
-			zap.Int("GOROUTIN ID", goroutinID))
-
-		err = service.MarkAsDeleted(ctx, storage, logger, shortURLs, cfg, user)
-		logger.Debug("GOROUTIN END", zap.Int("GOROUTIN ID", goroutinID))
-
+		err := storage.AddDeleteTask(shortURLs, user.ID)
 		if err != nil {
-			logger.Error("error deleting url", zap.Error(err))
+			logger.Error("error adding new delete task in storage", zap.Error(err))
 		}
 	}()
 	w.WriteHeader(http.StatusAccepted)

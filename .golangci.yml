@@ -552,6 +552,8 @@ issues:
     - "Use ExecContext instead of QueryRowContext to execute `INSERT` query"
     - "string `Content-Type` has 4 occurrences, make it a constant"
     - "G201: SQL string formatting"
+    - "context-keys-type: should not use basic type string as key in context.WithValue"
+    - "SA1029: should not use built-in type string as key for value; define your own type to avoid collisions"
 
   # Which dirs to exclude: issues from them won't be reported.
   # Can use regexp here: `generated.*`, regexp is applied on full path,

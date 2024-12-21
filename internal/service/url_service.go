@@ -41,16 +41,11 @@ func AddURL(
 }
 
 func MarkAsDeleted(
-	_ context.Context,
+	ctx context.Context,
+	tasks []*models.DelTask,
 	storage repository.Storage,
-	logger *zap.Logger,
-	delURLs []string,
-	_ *config.Config,
-	user *models.User,
 ) error {
-	ctx := context.Background()
-
-	err := storage.MarkAsDeletedURL(ctx, delURLs, user.ID, logger)
+	err := storage.MarkAsDeletedURL(ctx, tasks)
 	if err != nil {
 		return fmt.Errorf("error mark URL deleted %w", err)
 	}
