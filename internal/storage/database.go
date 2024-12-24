@@ -128,7 +128,7 @@ func (db *DatabaseStorage) AddDeleteTask(
 	}
 
 	for _, url := range shortURL {
-		_, err = stmt.ExecContext(ctx, url, userID, models.REGISTERED)
+		_, err = stmt.ExecContext(ctx, url, userID, models.Registered)
 		if err != nil {
 			return fmt.Errorf("error exec context for create del task %w", err)
 		}

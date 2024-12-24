@@ -3,8 +3,8 @@ package models
 type DelTaskStatus string
 
 const (
-	REGISTERED DelTaskStatus = "REGISTERED"
-	DONE       DelTaskStatus = "DONE"
+	Registered DelTaskStatus = "Registered"
+	Done       DelTaskStatus = "Done"
 )
 
 type DelTask struct {

@@ -45,7 +45,7 @@ func (s *MemoryStorage) AddDeleteTask(shortURL []string, userID int) error {
 		s.deleteTasks[url] = &models.DelTask{
 			URL:    url,
 			UserID: userID,
-			Status: models.REGISTERED,
+			Status: models.Registered,
 		}
 	}
 

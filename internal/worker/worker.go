@@ -33,7 +33,7 @@ func (dw *DelWorker) LookUp() {
 	for {
 		dw.Logger.Debug("worker: ping tasks")
 		ctx := context.Background()
-		tasks, err := taskService.GetDeleteTasksWStatus(ctx, models.REGISTERED, dw.Storage)
+		tasks, err := taskService.GetDeleteTasksWStatus(ctx, models.Registered, dw.Storage)
 		if err != nil {
 			dw.Logger.Error("worker: error getting tasks for delete", zap.Error(err))
 			time.Sleep(dw.PingInterval)
@@ -53,7 +53,7 @@ func (dw *DelWorker) LookUp() {
 		}
 		dw.Logger.Debug("worker: mark URLs from task deleted")
 
-		err = taskService.UpdateTasksStatus(ctx, tasks, models.DONE, dw.Storage)
+		err = taskService.UpdateTasksStatus(ctx, tasks, models.Done, dw.Storage)
 		if err != nil {
 			dw.Logger.Error("worker: error updating tasks statuses", zap.Error(err))
 			time.Sleep(dw.PingInterval)
