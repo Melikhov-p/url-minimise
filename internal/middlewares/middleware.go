@@ -1,12 +1,19 @@
 package middlewares
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	compress "github.com/Melikhov-p/url-minimise/internal/compressor"
+	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/contextkeys"
+	"github.com/Melikhov-p/url-minimise/internal/models"
+	"github.com/Melikhov-p/url-minimise/internal/repository"
+	"github.com/Melikhov-p/url-minimise/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -22,7 +29,9 @@ type (
 	}
 
 	Middleware struct {
-		Logger *zap.Logger
+		Logger  *zap.Logger
+		Storage repository.Storage
+		Cfg     *config.Config
 	}
 )
 
@@ -42,6 +51,11 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 
 		duration := time.Since(startTime)
 
+		user, ok := r.Context().Value("user").(*models.User)
+		if !ok {
+			user = repository.NewEmptyUser()
+		}
+
 		m.Logger.Info(
 			"",
 			zap.String("URI", r.RequestURI),
@@ -49,6 +63,7 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 			zap.Duration("DURATION", duration),
 			zap.Int("SIZE", responseData.size),
 			zap.Int("STATUS", responseData.status),
+			zap.Int("USER_ID", user.ID),
 		)
 	})
 }
@@ -107,4 +122,31 @@ func (m *Middleware) GzipMiddleware(h http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(comp)
+}
+
+func (m *Middleware) WithAuth(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenCookie, err := r.Cookie("Token")
+		if err != nil && !errors.Is(err, http.ErrNoCookie) {
+			w.WriteHeader(http.StatusBadRequest)
+			m.Logger.Error("can not read cookie from request", zap.Error(err))
+			return
+		}
+
+		var user *models.User
+		if !errors.Is(err, http.ErrNoCookie) {
+			token := tokenCookie.Value
+			user, err = service.AuthUserByToken(token, m.Storage, m.Logger, m.Cfg)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				m.Logger.Error("error authorizing user", zap.Error(err))
+				return
+			}
+		} else {
+			user = repository.NewEmptyUser()
+		}
+
+		ctxWithUser := context.WithValue(r.Context(), contextkeys.ContextUserKey, user)
+		h.ServeHTTP(w, r.WithContext(ctxWithUser))
+	})
 }

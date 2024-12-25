@@ -8,12 +8,17 @@ import (
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	"github.com/Melikhov-p/url-minimise/internal/contextkeys"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/Melikhov-p/url-minimise/internal/service"
 	storagePkg "github.com/Melikhov-p/url-minimise/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
+)
+
+var (
+	errGetContextUser = errors.New("error getting user from context")
 )
 
 func CreateShortURL(
@@ -38,7 +43,27 @@ func CreateShortURL(
 
 	ctx := r.Context()
 
-	newURL, err := service.AddURL(ctx, storage, logger, string(originalURL), cfg)
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
+	if !ok {
+		logger.Error(errGetContextUser.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if !user.Service.IsAuthenticated {
+		user, err = service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  "Token",
+		Value: user.Service.Token,
+	})
+
+	newURL, err := service.AddURL(ctx, storage, logger, string(originalURL), cfg, user.ID)
 	if err != nil {
 		if errors.Is(err, storagePkg.ErrOriginalURLExist) {
 			w.WriteHeader(http.StatusConflict)
@@ -59,6 +84,10 @@ func CreateShortURL(
 
 	w.Header().Set(`Content-Type`, `text/plain`)
 	w.WriteHeader(http.StatusCreated)
+	logger.Debug("add new URL from /",
+		zap.String("OriginalURL", newURL.OriginalURL),
+		zap.String("ShortURL", newURL.ShortURL),
+		zap.Int("USER_ID", user.ID))
 	_, err = fmt.Fprintf(w, `%s%s`, cfg.ResultAddr+"/", newURL.ShortURL)
 
 	if err != nil {
@@ -82,13 +111,19 @@ func GetFullURL(
 
 	id := chi.URLParam(r, "id")
 
-	matchURL, err := storage.GetFullURL(ctx, id)
+	matchURL, err := storage.GetURL(ctx, id)
 	if err != nil {
-		logger.Info("not found full URL by short", zap.String("shortURL", id))
+		logger.Info("not found full URL by short", zap.String("shortURL", id), zap.Error(err))
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	w.Header().Set(`Location`, matchURL)
+
+	if matchURL.DeletedFlag {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
+
+	w.Header().Set(`Location`, matchURL.OriginalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -105,6 +140,27 @@ func APICreateShortURL(
 
 	ctx := r.Context()
 
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
+	if !ok {
+		logger.Error(errGetContextUser.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var err error
+	if !user.Service.IsAuthenticated {
+		user, err = service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  "Token",
+		Value: user.Service.Token,
+	})
+
 	logger.Debug("start decoding request")
 	var req models.Request
 	dec := json.NewDecoder(r.Body)
@@ -117,7 +173,7 @@ func APICreateShortURL(
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
 
-	newURL, err := service.AddURL(ctx, storage, logger, req.URL, cfg)
+	newURL, err := service.AddURL(ctx, storage, logger, req.URL, cfg, user.ID)
 	if err != nil {
 		if errors.Is(err, storagePkg.ErrOriginalURLExist) {
 			w.WriteHeader(http.StatusConflict)
@@ -140,6 +196,9 @@ func APICreateShortURL(
 		ResultURL: cfg.ResultAddr + "/" + newURL.ShortURL,
 	}
 	w.WriteHeader(http.StatusCreated)
+	logger.Debug("add new URL from /api/shorten",
+		zap.String("OriginalURL", newURL.OriginalURL),
+		zap.String("ShortURL", newURL.ShortURL))
 	if err = enc.Encode(res); err != nil && !errors.Is(err, io.EOF) {
 		logger.Error("error encoding response", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -158,6 +217,8 @@ func APICreateBatchURLs(
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	ctx := r.Context()
 	dec := json.NewDecoder(r.Body)
 	var req models.BatchRequest
 	if err := dec.Decode(&req.BatchURLs); err != nil {
@@ -166,12 +227,33 @@ func APICreateBatchURLs(
 		return
 	}
 
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
+	if !ok {
+		logger.Error(errGetContextUser.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var err error
+	if !user.Service.IsAuthenticated {
+		user, err = service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:  "Token",
+		Value: user.Service.Token,
+	})
+
 	originalURLs := make([]string, 0, len(req.BatchURLs))
 	for _, url := range req.BatchURLs {
 		originalURLs = append(originalURLs, url.OriginalURL)
 	}
 
-	newURLs, err := repository.NewStorageMultiURL(r.Context(), originalURLs, storage, cfg)
+	newURLs, err := repository.NewStorageMultiURL(r.Context(), originalURLs, storage, cfg, user.ID)
 	if err != nil {
 		logger.Error("error getting new storage for multi urls", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -195,12 +277,54 @@ func APICreateBatchURLs(
 	enc := json.NewEncoder(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	logger.Debug("add new URLs from /api/shorten/batch")
 
 	if err = enc.Encode(&res.BatchURLs); err != nil {
 		logger.Error("error encoding batch response to json", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func APIMarkAsDeletedURLs(
+	w http.ResponseWriter,
+	r *http.Request,
+	_ *config.Config,
+	storage repository.Storage,
+	logger *zap.Logger,
+) {
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+	user, ok := ctx.Value(contextkeys.ContextUserKey).(*models.User)
+	if !ok {
+		logger.Error("")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if !user.Service.IsAuthenticated {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	var shortURLs []string
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(&shortURLs); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		logger.Error("error decoding delete request", zap.Error(err))
+		return
+	}
+
+	go func() {
+		err := storage.AddDeleteTask(shortURLs, user.ID)
+		if err != nil {
+			logger.Error("error adding new delete task in storage", zap.Error(err))
+		}
+	}()
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func PingDatabase(

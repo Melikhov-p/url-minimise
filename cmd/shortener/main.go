@@ -3,13 +3,17 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/app"
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
+	"github.com/Melikhov-p/url-minimise/internal/worker"
 	"go.uber.org/zap"
 )
+
+const delWorkerPingInterval = 5 * time.Second
 
 func main() {
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
@@ -19,10 +23,13 @@ func main() {
 
 	cfg := config.NewConfig(logger, false) // Возвращает конфиг с прочитанными флагами и энвами
 
-	store, err := repository.NewStorage(cfg)
+	store, err := repository.NewStorage(cfg, logger)
 	if err != nil {
 		logger.Fatal("error getting new storage", zap.Error(err))
 	}
+
+	delWorker := worker.NewDelWorker(delWorkerPingInterval, logger, store)
+	go delWorker.LookUp()
 
 	router := app.CreateRouter(cfg, store, logger)
 

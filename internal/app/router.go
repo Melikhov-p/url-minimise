@@ -14,10 +14,12 @@ import (
 func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
 	middleware := middlewares.Middleware{
-		Logger: logger,
+		Logger:  logger,
+		Storage: storage,
+		Cfg:     cfg,
 	}
-
 	router.Use(
+		middleware.WithAuth,
 		middleware.WithLogging,
 		middleware.GzipMiddleware,
 	)
@@ -32,6 +34,10 @@ func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Lo
 		r.Route("/shorten", func(r chi.Router) {
 			r.Post("/", wrapper(handlers.APICreateShortURL, cfg, storage, logger))
 			r.Post("/batch", wrapper(handlers.APICreateBatchURLs, cfg, storage, logger))
+		})
+		r.Route("/user", func(r chi.Router) {
+			r.Get("/urls", wrapper(handlers.GetUserURLs, cfg, storage, logger))
+			r.Delete("/urls", wrapper(handlers.APIMarkAsDeletedURLs, cfg, storage, logger))
 		})
 	})
 
