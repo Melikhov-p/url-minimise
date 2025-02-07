@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	_ "net/http/pprof" // подключаем пакет pprof
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/app"
