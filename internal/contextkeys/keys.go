@@ -2,5 +2,5 @@ package contextkeys
 
 type contextKey string
 
-// ContextUserKey user
+// ContextUserKey user.
 const ContextUserKey contextKey = "user"

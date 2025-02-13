@@ -21,7 +21,7 @@ var (
 	errGetContextUser = errors.New("error getting user from context")
 )
 
-// CreateShortURL создание нового URL
+// CreateShortURL создание нового URL.
 func CreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -98,7 +98,7 @@ func CreateShortURL(
 	}
 }
 
-// GetFullURL Получение полного URL
+// GetFullURL Получение полного URL.
 func GetFullURL(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -129,7 +129,7 @@ func GetFullURL(
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-// APICreateShortURL создание нового URL через json
+// APICreateShortURL создание нового URL через json.
 func APICreateShortURL(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -209,7 +209,7 @@ func APICreateShortURL(
 	}
 }
 
-// APICreateBatchURLs Создание пачки новых URL
+// APICreateBatchURLs Создание пачки новых URL.
 func APICreateBatchURLs(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -290,7 +290,7 @@ func APICreateBatchURLs(
 	}
 }
 
-// APIMarkAsDeletedURLs пометить URL на удаление
+// APIMarkAsDeletedURLs пометить URL на удаление.
 func APIMarkAsDeletedURLs(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -332,7 +332,7 @@ func APIMarkAsDeletedURLs(
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// PingDatabase проверка соединения с базой данных
+// PingDatabase проверка соединения с базой данных.
 func PingDatabase(
 	w http.ResponseWriter,
 	r *http.Request,

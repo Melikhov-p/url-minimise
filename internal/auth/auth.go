@@ -15,7 +15,7 @@ type claims struct {
 	UserID int
 }
 
-// BuildJWTString строит JWT токен (string, error)
+// BuildJWTString строит JWT токен (string, error).
 func BuildJWTString(userID int, secretKey string, tokenLifeTime time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -32,7 +32,7 @@ func BuildJWTString(userID int, secretKey string, tokenLifeTime time.Duration) (
 	return tokenString, nil
 }
 
-// GetUserID получает ID пользователя из токена
+// GetUserID получает ID пользователя из токена.
 func GetUserID(tokenString string, secretKey string) (int, error) {
 	claims := &claims{}
 
@@ -55,7 +55,7 @@ func GetUserID(tokenString string, secretKey string) (int, error) {
 	return claims.UserID, nil
 }
 
-// GenerateAuthKey генерирует ключ аутентификации
+// GenerateAuthKey генерирует ключ аутентификации.
 func GenerateAuthKey() (string, error) {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)

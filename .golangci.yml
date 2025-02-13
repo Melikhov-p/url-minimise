@@ -178,7 +178,7 @@ linters-settings:
   godot:
     capital: true
     exclude: [ ]
-    period: true
+    period: false
     scope: toplevel
 
   gofmt:

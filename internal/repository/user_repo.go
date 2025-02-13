@@ -4,7 +4,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
-// NewEmptyUser создать пустого пользователя
+// NewEmptyUser создать пустого пользователя.
 func NewEmptyUser() *models.User {
 	return &models.User{
 		ID:   -1,

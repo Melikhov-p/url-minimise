@@ -23,7 +23,7 @@ const (
 	defaultStorageMode     = storage.StorageFromFile
 )
 
-// Config структура конфига
+// Config структура конфига.
 type Config struct {
 	StorageMode      storage.StorageType
 	Storage          storageConfig.Config

@@ -17,7 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// структуры
+// структуры.
 type (
 	responseData struct {
 		status int
@@ -29,7 +29,7 @@ type (
 		responseData *responseData
 	}
 
-	// Middleware объект мидлвари
+	// Middleware объект мидлвари.
 	Middleware struct {
 		Logger  *zap.Logger
 		Storage repository.Storage
@@ -37,7 +37,7 @@ type (
 	}
 )
 
-// WithLogging мидлварь логирования
+// WithLogging мидлварь логирования.
 func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		startTime := time.Now()
@@ -71,7 +71,7 @@ func (m *Middleware) WithLogging(h http.Handler) http.Handler {
 	})
 }
 
-// Write пишет
+// Write пишет.
 func (r *loggerResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size
@@ -81,13 +81,13 @@ func (r *loggerResponseWriter) Write(b []byte) (int, error) {
 	return size, nil
 }
 
-// WriteHeader пишет заголовок
+// WriteHeader пишет заголовок.
 func (r *loggerResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode
 }
 
-// GzipMiddleware мидлварь компрессии
+// GzipMiddleware мидлварь компрессии.
 func (m *Middleware) GzipMiddleware(h http.Handler) http.Handler {
 	comp := func(w http.ResponseWriter, r *http.Request) {
 		ow := w
@@ -130,7 +130,7 @@ func (m *Middleware) GzipMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(comp)
 }
 
-// WithAuth мидлварь аутентификации
+// WithAuth мидлварь аутентификации.
 func (m *Middleware) WithAuth(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenCookie, err := r.Cookie("Token")
