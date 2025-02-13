@@ -34,7 +34,6 @@ func GetUserURLs(
 	if !user.Service.IsAuthenticated { // for broken TestIteration14
 		user, err := service.AddNewUser(ctx, storage, cfg)
 		if err != nil {
-			logger.Error("error adding new user", zap.Error(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
