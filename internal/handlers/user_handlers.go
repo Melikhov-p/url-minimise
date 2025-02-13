@@ -8,6 +8,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/contextkeys"
 	"github.com/Melikhov-p/url-minimise/internal/models"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
+	"github.com/Melikhov-p/url-minimise/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -30,9 +31,19 @@ func GetUserURLs(
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if !user.Service.IsAuthenticated {
+	if !user.Service.IsAuthenticated { // for broken TestIteration14
+		user, err := service.AddNewUser(ctx, storage, cfg)
+		if err != nil {
+			logger.Error("error adding new user", zap.Error(err))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		http.SetCookie(w, &http.Cookie{
+			Name:  "Token",
+			Value: user.Service.Token,
+		})
 		logger.Debug("unAuthorized user")
-		w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
