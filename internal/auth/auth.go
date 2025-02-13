@@ -10,13 +10,14 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-type Claims struct {
+type claims struct {
 	jwt.RegisteredClaims
 	UserID int
 }
 
+// BuildJWTString строит JWT токен (string, error)
 func BuildJWTString(userID int, secretKey string, tokenLifeTime time.Duration) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenLifeTime)),
 		},
@@ -31,8 +32,9 @@ func BuildJWTString(userID int, secretKey string, tokenLifeTime time.Duration) (
 	return tokenString, nil
 }
 
+// GetUserID получает ID пользователя из токена
 func GetUserID(tokenString string, secretKey string) (int, error) {
-	claims := &Claims{}
+	claims := &claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims,
 		func(t *jwt.Token) (interface{}, error) {
@@ -53,6 +55,7 @@ func GetUserID(tokenString string, secretKey string) (int, error) {
 	return claims.UserID, nil
 }
 
+// GenerateAuthKey генерирует ключ аутентификации
 func GenerateAuthKey() (string, error) {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)

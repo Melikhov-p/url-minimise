@@ -8,6 +8,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 )
 
+// GetDeleteTasksWStatus получить задачи с заданным статусом.
 func GetDeleteTasksWStatus(
 	ctx context.Context,
 	status models.DelTaskStatus,
@@ -20,6 +21,7 @@ func GetDeleteTasksWStatus(
 	return tasks, nil
 }
 
+// UpdateTasksStatus обновить статус задачи.
 func UpdateTasksStatus(
 	ctx context.Context,
 	tasks []*models.DelTask,

@@ -6,6 +6,7 @@ import (
 	memoryConfig "github.com/Melikhov-p/url-minimise/internal/repository/memory/config"
 )
 
+// Config конфиг
 type Config struct {
 	InMemory    *memoryConfig.Config
 	FileStorage *fileConfig.Config

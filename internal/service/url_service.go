@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// AddURL Adding new url in storage, return URL model and error.
+// AddURL добавить новый адрес.
 func AddURL(
 	ctx context.Context,
 	storage repository.Storage,
@@ -40,6 +40,7 @@ func AddURL(
 	return newURL, nil
 }
 
+// MarkAsDeleted пометить адрес на удаление.
 func MarkAsDeleted(
 	ctx context.Context,
 	tasks []*models.DelTask,

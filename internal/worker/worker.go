@@ -10,16 +10,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// Worker интерфейс воркера
 type Worker interface {
 	LookUp()
 }
 
+// DelWorker воркер, который будет следить за тасками на удаление
 type DelWorker struct {
 	PingInterval time.Duration
 	Logger       *zap.Logger
 	Storage      repository.Storage
 }
 
+// NewDelWorker возвращает воркера, который будет следить за тасками на удаление
 func NewDelWorker(pingInterval time.Duration, logger *zap.Logger, storage repository.Storage) *DelWorker {
 	return &DelWorker{
 		PingInterval: pingInterval,
@@ -28,6 +31,7 @@ func NewDelWorker(pingInterval time.Duration, logger *zap.Logger, storage reposi
 	}
 }
 
+// LookUp основной луп воркера
 func (dw *DelWorker) LookUp() {
 	dw.Logger.Info("worker: starting look up for delete tasks")
 	for {

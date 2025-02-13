@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// AuthUserByToken аутентификация по токену.
 func AuthUserByToken(tokenString string,
 	s repository.Storage,
 	logger *zap.Logger,
@@ -35,6 +36,7 @@ func AuthUserByToken(tokenString string,
 	return emptyUser, nil
 }
 
+// AddNewUser добавить пользователя.
 func AddNewUser(ctx context.Context, s repository.Storage, cfg *config.Config) (*models.User, error) {
 	user, err := s.AddUser(ctx)
 	if err != nil {
@@ -50,6 +52,7 @@ func AddNewUser(ctx context.Context, s repository.Storage, cfg *config.Config) (
 	return user, nil
 }
 
+// BuildUserToken создать токен для пользователя.
 func BuildUserToken(userID int, cfg *config.Config) (string, error) {
 	// BuildUserToken return token string for userID int
 	token, err := auth.BuildJWTString(userID, cfg.SecretKey, cfg.JWTTokenLifeTime)

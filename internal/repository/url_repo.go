@@ -11,6 +11,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
+// NewStorageURL новый адрес для хранилища
 func NewStorageURL(ctx context.Context,
 	fullURL string, s Storage,
 	cfg *config.Config,
@@ -28,6 +29,7 @@ func NewStorageURL(ctx context.Context,
 	return nil, err
 }
 
+// NewStorageMultiURL новые адреса для хранилища
 func NewStorageMultiURL(
 	ctx context.Context,
 	fullURLs []string,

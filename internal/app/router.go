@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// CreateRouter возвращает имплементацию интерфейса chi Router
 func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Logger) chi.Router {
 	router := chi.NewRouter()
 	middleware := middlewares.Middleware{

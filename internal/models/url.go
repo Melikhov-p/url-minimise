@@ -2,6 +2,7 @@ package models
 
 import "sync"
 
+// StorageURL структура хранимого в хранилище URL
 type StorageURL struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
@@ -10,6 +11,7 @@ type StorageURL struct {
 	DeletedFlag bool   `json:"is_deleted"`
 }
 
+// DelURLs адрес отмеченные на удаление
 type DelURLs struct {
 	URLs []string
 	Mu   sync.Mutex

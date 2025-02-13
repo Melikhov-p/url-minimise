@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// GetUserURLs получение URL добавленных пользователем
 func GetUserURLs(
 	w http.ResponseWriter,
 	r *http.Request,

@@ -8,6 +8,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
+// MemoryStorage хранилище в памяти.
 type MemoryStorage struct {
 	urls        map[string]*models.StorageURL
 	users       map[int]*models.User
@@ -15,6 +16,7 @@ type MemoryStorage struct {
 	lastUserID  int
 }
 
+// NewMemoryStorage создать новое хранилище в памяти.
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
 		urls:        map[string]*models.StorageURL{},
@@ -24,6 +26,7 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
+// AddURL добавить адрес.
 func (s *MemoryStorage) AddURL(ctx context.Context, newURL *models.StorageURL) (string, error) {
 	if short, ok := s.checkFull(ctx, newURL.OriginalURL); ok {
 		return short, ErrOriginalURLExist
@@ -32,6 +35,7 @@ func (s *MemoryStorage) AddURL(ctx context.Context, newURL *models.StorageURL) (
 	return newURL.ShortURL, nil
 }
 
+// AddURLs добавить несколько адресов.
 func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL) error {
 	for _, url := range newURLs {
 		s.urls[url.ShortURL] = url
@@ -40,6 +44,7 @@ func (s *MemoryStorage) AddURLs(_ context.Context, newURLs []*models.StorageURL)
 	return nil
 }
 
+// AddDeleteTask добавить задачу на удаление.
 func (s *MemoryStorage) AddDeleteTask(shortURL []string, userID int) error {
 	for _, url := range shortURL {
 		s.deleteTasks[url] = &models.DelTask{
@@ -52,6 +57,7 @@ func (s *MemoryStorage) AddDeleteTask(shortURL []string, userID int) error {
 	return nil
 }
 
+// GetDeleteTasksWStatus получить статус задачи на удаление.
 func (s *MemoryStorage) GetDeleteTasksWStatus(
 	_ context.Context,
 	status models.DelTaskStatus,
@@ -66,6 +72,7 @@ func (s *MemoryStorage) GetDeleteTasksWStatus(
 	return outTasks, nil
 }
 
+// MarkAsDeletedURL отметить адрес на удаление.
 func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, tasks []*models.DelTask) error {
 	for _, task := range tasks {
 		if s.urls[task.URL] == nil {
@@ -81,6 +88,7 @@ func (s *MemoryStorage) MarkAsDeletedURL(_ context.Context, tasks []*models.DelT
 	return nil
 }
 
+// UpdateTasksStatus обновить статус задачи на удаление.
 func (s *MemoryStorage) UpdateTasksStatus(
 	_ context.Context,
 	tasks []*models.DelTask,
@@ -93,6 +101,7 @@ func (s *MemoryStorage) UpdateTasksStatus(
 	return nil
 }
 
+// GetShortURL получить короткий адрес.
 func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string) (string, error) {
 	var short string
 
@@ -106,6 +115,7 @@ func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string
 	return "", fmt.Errorf("can not found short url for original %w", ErrNotFound)
 }
 
+// GetURL получить полный адрес.
 func (s *MemoryStorage) GetURL(_ context.Context, shortURL string) (*models.StorageURL, error) {
 	searchedElem := s.urls[shortURL]
 	if searchedElem != nil {
@@ -114,6 +124,7 @@ func (s *MemoryStorage) GetURL(_ context.Context, shortURL string) (*models.Stor
 	return nil, fmt.Errorf("can not found original url for short %w", ErrNotFound)
 }
 
+// CheckShort проверить короткий адрес.
 func (s *MemoryStorage) CheckShort(_ context.Context, short string) bool { return s.urls[short] != nil }
 
 // Если оригинальный URL есть в базе - true.
@@ -127,8 +138,10 @@ func (s *MemoryStorage) checkFull(_ context.Context, fullURL string) (string, bo
 	return "", false
 }
 
+// Ping пинг
 func (s *MemoryStorage) Ping(_ context.Context) error { return nil }
 
+// AddUser добавить пользователя
 func (s *MemoryStorage) AddUser(_ context.Context) (*models.User, error) {
 	s.lastUserID++
 	s.users[s.lastUserID] = &models.User{
@@ -143,6 +156,7 @@ func (s *MemoryStorage) AddUser(_ context.Context) (*models.User, error) {
 	return s.users[s.lastUserID], nil
 }
 
+// GetURLsByUserID получить адреса пользователя.
 func (s *MemoryStorage) GetURLsByUserID(_ context.Context, userID int) ([]*models.StorageURL, error) {
 	user := s.users[userID]
 	if user != nil {
