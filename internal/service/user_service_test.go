@@ -8,6 +8,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/config"
 	"github.com/Melikhov-p/url-minimise/internal/logger"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
+	"github.com/stretchr/testify/assert"
 )
 
 func BenchmarkServices(b *testing.B) {
@@ -40,4 +41,35 @@ func BenchmarkServices(b *testing.B) {
 			_, _ = AddURL(ctx, store, log, originalURL, cfg, userID)
 		}
 	})
+}
+
+func TestAddNewUser(t *testing.T) {
+	log, err := logger.BuildLogger("ERROR")
+	assert.NoError(t, err)
+	cfg := config.NewConfig(log, true)
+	store, err := repository.NewStorage(cfg, log)
+	assert.NoError(t, err)
+	_, err = AddNewUser(context.Background(), store, cfg)
+	assert.NoError(t, err)
+}
+
+func TestBuildUserToken(t *testing.T) {
+	log, err := logger.BuildLogger("ERROR")
+	assert.NoError(t, err)
+	cfg := config.NewConfig(log, true)
+	_, err = BuildUserToken(1, cfg)
+	assert.NoError(t, err)
+}
+
+func TestAuthUserByToken(t *testing.T) {
+	log, err := logger.BuildLogger("ERROR")
+	assert.NoError(t, err)
+	cfg := config.NewConfig(log, true)
+	store, err := repository.NewStorage(cfg, log)
+
+	token, err := BuildUserToken(1, cfg)
+
+	user, err := AuthUserByToken(token, store, log, cfg)
+	assert.NoError(t, err)
+	assert.Equal(t, token, user.Service.Token)
 }

@@ -1,9 +1,6 @@
 module github.com/Melikhov-p/url-minimise
 
-require (
-	github.com/golang/mock v1.6.0
-	github.com/stretchr/testify v1.9.0
-)
+require github.com/stretchr/testify v1.9.0
 
 require (
 	github.com/mfridman/interpolate v0.0.2 // indirect

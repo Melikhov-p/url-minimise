@@ -95,7 +95,9 @@ func (s *MemoryStorage) UpdateTasksStatus(
 	newStatus models.DelTaskStatus,
 ) error {
 	for _, task := range tasks {
-		s.deleteTasks[task.URL].Status = newStatus
+		if _, ok := s.deleteTasks[task.URL]; ok {
+			s.deleteTasks[task.URL].Status = newStatus
+		}
 	}
 
 	return nil
