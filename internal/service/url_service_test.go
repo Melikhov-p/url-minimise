@@ -16,6 +16,7 @@ func TestAddURL(t *testing.T) {
 	assert.NoError(t, err)
 	cfg := config.NewConfig(log, true)
 	store, err := repository.NewStorage(cfg, log)
+	assert.NoError(t, err)
 
 	_, err = AddURL(context.Background(), store, log, "original", cfg, 1)
 	assert.NoError(t, err)
@@ -26,6 +27,7 @@ func TestMarkAsDeleted(t *testing.T) {
 	assert.NoError(t, err)
 	cfg := config.NewConfig(log, true)
 	store, err := repository.NewStorage(cfg, log)
+	assert.NoError(t, err)
 
 	short, err := AddURL(context.Background(), store, log, "original", cfg, 1)
 	assert.NoError(t, err)

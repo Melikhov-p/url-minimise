@@ -66,8 +66,10 @@ func TestAuthUserByToken(t *testing.T) {
 	assert.NoError(t, err)
 	cfg := config.NewConfig(log, true)
 	store, err := repository.NewStorage(cfg, log)
+	assert.NoError(t, err)
 
 	token, err := BuildUserToken(1, cfg)
+	assert.NoError(t, err)
 
 	user, err := AuthUserByToken(token, store, log, cfg)
 	assert.NoError(t, err)
