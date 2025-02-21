@@ -9,6 +9,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
+// FileStorage хранилище в файле
 type FileStorage struct {
 	MemoryStorage
 	File    *os.File
@@ -21,6 +22,7 @@ func (s *FileStorage) SetInMemory(shortURL string, newURL *models.StorageURL) {
 	s.urls[shortURL] = newURL
 }
 
+// Save сохранение
 func (s *FileStorage) Save(record *models.StorageURL) error {
 	if err := s.Encoder.Encode(record); err != nil {
 		return fmt.Errorf("error encoding json to model %w", err)

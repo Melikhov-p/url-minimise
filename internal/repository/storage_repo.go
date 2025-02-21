@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Storage интерфейс хранилища.
 type Storage interface {
 	AddURL(context.Context, *models.StorageURL) (string, error)
 	AddURLs(context.Context, []*models.StorageURL) error
@@ -32,10 +33,13 @@ type Storage interface {
 	GetURLsByUserID(ctx context.Context, userID int) ([]*models.StorageURL, error)
 }
 
-type StorageSaver interface { // Для хранилищ, которым нужен отдельный метод для сохранения данных, например файл
+// StorageSaver для хранилищ, которым нужен отдельный метод для сохранения данных, например файл.
+type StorageSaver interface { // Для хранилищ, которым нужен отдельный метод для сохранения данных, например файл.
 	Save(*models.StorageURL) error
 }
 
+// NewStorage возвращает объект хранилища.
+// Один из: in_memory | file | database.
 func NewStorage(cfg *config.Config, _ *zap.Logger) (Storage, error) {
 	switch cfg.StorageMode {
 	case storage.BaseStorage:

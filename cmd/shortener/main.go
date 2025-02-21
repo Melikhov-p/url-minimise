@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	_ "net/http/pprof" // подключаем пакет pprof
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/app"
@@ -21,7 +22,7 @@ func main() {
 		log.Fatalf("cannot run logger: %v", err)
 	}
 
-	cfg := config.NewConfig(logger, false) // Возвращает конфиг с прочитанными флагами и энвами
+	cfg := config.NewConfig(logger, false)
 
 	store, err := repository.NewStorage(cfg, logger)
 	if err != nil {

@@ -34,3 +34,13 @@ git fetch template && git checkout template/main .github
 # **Флаги:**
 *       a : адрес на котором запускается сервер  -a localhost:8080
 *       b : адрес сокращенного URL -b locahost:8081
+
+# **Test Coverage**
+
+```shell
+go test -cover ./... -coverprofile=coverage.out
+```
+
+```shell
+go tool cover -func=coverage
+```

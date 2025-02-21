@@ -12,12 +12,14 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/models"
 )
 
+// DatabaseStorage хранилище в базе данных.
 type DatabaseStorage struct {
 	DB *sql.DB
 }
 
 const dbTimeout = 15 * time.Second
 
+// AddURL добавить URL.
 func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL) (string, error) {
 	// Add new url in storage, return short url and error.
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
@@ -64,6 +66,7 @@ func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL
 	return newURL.ShortURL, nil
 }
 
+// AddURLs добавить несколько URL.
 func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.StorageURL) error {
 	tx, err := db.DB.Begin()
 	if err != nil {
@@ -101,6 +104,7 @@ func (db *DatabaseStorage) AddURLs(ctx context.Context, newURLs []*models.Storag
 	return nil
 }
 
+// AddDeleteTask добавит задачу на удаление.
 func (db *DatabaseStorage) AddDeleteTask(
 	shortURL []string,
 	userID int,
@@ -138,6 +142,7 @@ func (db *DatabaseStorage) AddDeleteTask(
 	return nil
 }
 
+// GetDeleteTasksWStatus получить статус задачи на удаление.
 func (db *DatabaseStorage) GetDeleteTasksWStatus(
 	ctx context.Context,
 	status models.DelTaskStatus,
@@ -171,6 +176,7 @@ func (db *DatabaseStorage) GetDeleteTasksWStatus(
 	return outTasks, nil
 }
 
+// MarkAsDeletedURL отметить адрес на удаление
 func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, tasks []*models.DelTask) error {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
@@ -206,6 +212,7 @@ func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, tasks []*models
 	return nil
 }
 
+// UpdateTasksStatus обновить статус задачи на удаление.
 func (db *DatabaseStorage) UpdateTasksStatus(
 	ctx context.Context,
 	tasks []*models.DelTask,
@@ -244,6 +251,7 @@ func (db *DatabaseStorage) UpdateTasksStatus(
 	return nil
 }
 
+// GetURL получить полный адрес
 func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models.StorageURL, error) {
 	query := `
                 SELECT original_url, user_id, uuid, is_deleted  FROM url WHERE short_url = $1
@@ -262,6 +270,7 @@ func (db *DatabaseStorage) GetURL(ctx context.Context, shortURL string) (*models
 	return &u, nil
 }
 
+// GetShortURL получить короткий адрес
 func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL string) (string, error) {
 	preparedSelect, err := tx.PrepareContext(ctx, `SELECT short_url FROM url WHERE original_url = $1`)
 	if err != nil {
@@ -282,6 +291,7 @@ func (db *DatabaseStorage) GetShortURL(ctx context.Context, tx *sql.Tx, fullURL 
 	return shortURL, nil
 }
 
+// CheckShort проверить наличие короткого адреса.
 func (db *DatabaseStorage) CheckShort(ctx context.Context, shortURL string) bool {
 	if _, err := db.GetURL(ctx, shortURL); err != nil {
 		return false
@@ -290,6 +300,7 @@ func (db *DatabaseStorage) CheckShort(ctx context.Context, shortURL string) bool
 	return true
 }
 
+// Ping пингануть
 func (db *DatabaseStorage) Ping(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
@@ -301,6 +312,7 @@ func (db *DatabaseStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
+// AddUser добавить пользователя
 func (db *DatabaseStorage) AddUser(ctx context.Context) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
@@ -334,6 +346,7 @@ func (db *DatabaseStorage) AddUser(ctx context.Context) (*models.User, error) {
 	return user, nil
 }
 
+// GetURLsByUserID получить адреса пользователя
 func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*models.StorageURL, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
@@ -366,6 +379,7 @@ func (db *DatabaseStorage) GetURLsByUserID(ctx context.Context, userID int) ([]*
 	return urls, nil
 }
 
+// GetSecretKey получить секретный ключ
 func (db *DatabaseStorage) GetSecretKey(ctx context.Context) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
