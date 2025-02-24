@@ -44,3 +44,15 @@ go test -cover ./... -coverprofile=coverage.out
 ```shell
 go tool cover -func=coverage
 ```
+
+
+# **Staticlint**  
+
+**./cmd/staticlint/**
+```shell
+go build -o multichecker multichecker.go
+```
+
+```shell
+./multichecker
+```

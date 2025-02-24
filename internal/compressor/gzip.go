@@ -31,7 +31,8 @@ func (c *CompressWriter) Write(p []byte) (int, error) {
 	return c.gw.Write(p)
 }
 
-// WriteHeader устанавливает HTTP-код статуса и добавляет заголовок "Content-Encoding: gzip", если код статуса ниже порогового значения.
+// WriteHeader устанавливает HTTP-код статуса и добавляет заголовок "Content-Encoding: gzip",
+// если код статуса ниже порогового значения.
 func (c *CompressWriter) WriteHeader(statusCode int) {
 	if statusCode < statusCodeThreshHold {
 		c.w.Header().Set("Content-Encoding", "gzip")

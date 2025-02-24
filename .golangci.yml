@@ -569,6 +569,7 @@ issues:
     - ".gradle"
     - "example"
     - "compressor"
+    - "staticlint"
   # Enables exclude of directories:
   # - vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
   exclude-dirs-use-default: false
