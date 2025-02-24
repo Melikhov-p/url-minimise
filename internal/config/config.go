@@ -10,7 +10,7 @@ import (
 	fileConfig "github.com/Melikhov-p/url-minimise/internal/repository/file/config"
 	memoryConfig "github.com/Melikhov-p/url-minimise/internal/repository/memory/config"
 	"github.com/Melikhov-p/url-minimise/internal/storage"
-	_ "github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5" // PostgreSQL driver.
 	"go.uber.org/zap"
 )
 
