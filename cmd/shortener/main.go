@@ -15,6 +15,9 @@ import (
 	"go.uber.org/zap"
 )
 
+// BuildVersion = определяет версию приложения.
+// BuildDate = определяет дату сборки.
+// BuildCommit = определяет коммит сборки.
 var (
 	BuildVersion = "N/A"
 	BuildDate    = "N/A"

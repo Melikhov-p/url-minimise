@@ -542,7 +542,7 @@ func TestDatabaseStorage_GetShortURL(t *testing.T) {
 		expectedShort string
 		wantErr       bool
 		wantErrIs     error
-		fullUrl       string
+		fullURL       string
 		mockBehavior  func(sqlmock.Sqlmock, string)
 	}{
 		{
@@ -550,7 +550,7 @@ func TestDatabaseStorage_GetShortURL(t *testing.T) {
 			expectedShort: "short",
 			wantErr:       false,
 			wantErrIs:     nil,
-			fullUrl:       "full",
+			fullURL:       "full",
 			mockBehavior: func(s sqlmock.Sqlmock, full string) {
 				prepared := mock.ExpectPrepare(`SELECT short_url FROM url WHERE original_url = ?`)
 
@@ -564,7 +564,7 @@ func TestDatabaseStorage_GetShortURL(t *testing.T) {
 			expectedShort: "short",
 			wantErr:       true,
 			wantErrIs:     ErrNotFound,
-			fullUrl:       "full",
+			fullURL:       "full",
 			mockBehavior: func(s sqlmock.Sqlmock, full string) {
 				prepared := mock.ExpectPrepare(`SELECT short_url FROM url WHERE original_url = ?`)
 
@@ -588,11 +588,11 @@ func TestDatabaseStorage_GetShortURL(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			test.mockBehavior(mock, test.fullUrl)
+			test.mockBehavior(mock, test.fullURL)
 			ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 			defer cancel()
 
-			short, err := storage.GetShortURL(ctx, tx, test.fullUrl)
+			short, err := storage.GetShortURL(ctx, tx, test.fullURL)
 			if test.wantErr {
 				assert.ErrorIs(t, err, test.wantErrIs)
 			} else {
