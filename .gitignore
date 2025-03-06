@@ -28,3 +28,6 @@ golangci-lint/report-unformatted.json
 
 #study
 cmd/example
+
+#test-coverage
+coverage

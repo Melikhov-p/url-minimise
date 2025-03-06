@@ -19,17 +19,17 @@ import (
 // BuildDate = определяет дату сборки.
 // BuildCommit = определяет коммит сборки.
 var (
-	BuildVersion = "N/A"
-	BuildDate    = "N/A"
-	BuildCommit  = "N/A"
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 const delWorkerPingInterval = 5 * time.Second
 
 func main() {
-	fmt.Printf("Build version: %s\n", BuildVersion)
-	fmt.Printf("Build date: %s\n", BuildDate)
-	fmt.Printf("Build commit: %s\n", BuildCommit)
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	if err != nil {
 		log.Fatalf("cannot run logger: %v", err)
