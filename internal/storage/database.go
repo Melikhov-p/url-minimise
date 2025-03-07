@@ -114,22 +114,20 @@ func (db *DatabaseStorage) AddDeleteTask(
 
 	query := `INSERT INTO delete_task (short_url, user_id, status) VALUES ($1, $2, $3)`
 	tx, err := db.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction for create delete task %w", err)
+	}
 	defer func() {
 		_ = tx.Rollback()
 	}()
 
-	if err != nil {
-		return fmt.Errorf("error starting transaction for create delete task %w", err)
-	}
-
 	stmt, err := tx.PrepareContext(ctx, query)
-	defer func() {
-		_ = stmt.Close()
-	}()
-
 	if err != nil {
 		return fmt.Errorf("error prepare context for create del task %w", err)
 	}
+	defer func() {
+		_ = stmt.Close()
+	}()
 
 	for _, url := range shortURL {
 		_, err = stmt.ExecContext(ctx, url, userID, models.Registered)
@@ -152,12 +150,12 @@ func (db *DatabaseStorage) GetDeleteTasksWStatus(
 	defer cancel()
 
 	rows, err := db.DB.QueryContext(ctx, query, status)
-	defer func() {
-		_ = rows.Close()
-	}()
 	if err != nil {
 		return nil, fmt.Errorf("error exec context for delete tasks %w", err)
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	outTasks := make([]*models.DelTask, 0)
 	for rows.Next() {
@@ -185,21 +183,20 @@ func (db *DatabaseStorage) MarkAsDeletedURL(ctx context.Context, tasks []*models
 	query := `UPDATE url SET is_deleted=true WHERE short_url=$1 AND user_id=$2`
 
 	tx, err := db.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction for delete %w", err)
+	}
 	defer func() {
 		_ = tx.Rollback()
 	}()
 
-	if err != nil {
-		return fmt.Errorf("error starting transaction for delete %w", err)
-	}
-
 	stmt, err := tx.PrepareContext(ctx, query)
-	defer func() {
-		_ = stmt.Close()
-	}()
 	if err != nil {
 		return fmt.Errorf("error prepare context for update query %w", err)
 	}
+	defer func() {
+		_ = stmt.Close()
+	}()
 
 	for _, task := range tasks {
 		_, err = stmt.ExecContext(ctx, task.URL, task.UserID)
@@ -224,21 +221,20 @@ func (db *DatabaseStorage) UpdateTasksStatus(
 	query := `UPDATE delete_task SET status=$1 WHERE short_url=$2`
 
 	tx, err := db.DB.Begin()
+	if err != nil {
+		return fmt.Errorf("error starting transaction for update status %w", err)
+	}
 	defer func() {
 		_ = tx.Rollback()
 	}()
 
-	if err != nil {
-		return fmt.Errorf("error starting transaction for update status %w", err)
-	}
-
 	stmt, err := tx.PrepareContext(ctx, query)
-	defer func() {
-		_ = stmt.Close()
-	}()
 	if err != nil {
 		return fmt.Errorf("error prepare context for update task status %w", err)
 	}
+	defer func() {
+		_ = stmt.Close()
+	}()
 
 	for _, task := range tasks {
 		_, err = stmt.ExecContext(ctx, newStatus, task.URL)

@@ -114,7 +114,7 @@ func (s *MemoryStorage) GetShortURL(_ context.Context, _ *sql.Tx, fullURL string
 		}
 	}
 
-	return "", fmt.Errorf("can not found short url for original %w", ErrNotFound)
+	return "", fmt.Errorf("can not wantFound short url for original %w", ErrNotFound)
 }
 
 // GetURL получить полный адрес.
@@ -123,7 +123,7 @@ func (s *MemoryStorage) GetURL(_ context.Context, shortURL string) (*models.Stor
 	if searchedElem != nil {
 		return searchedElem, nil
 	}
-	return nil, fmt.Errorf("can not found original url for short %w", ErrNotFound)
+	return nil, fmt.Errorf("can not wantFound original url for short %w", ErrNotFound)
 }
 
 // CheckShort проверить короткий адрес.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
@@ -14,9 +15,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// BuildVersion = определяет версию приложения.
+// BuildDate = определяет дату сборки.
+// BuildCommit = определяет коммит сборки.
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 const delWorkerPingInterval = 5 * time.Second
 
 func main() {
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	if err != nil {
 		log.Fatalf("cannot run logger: %v", err)

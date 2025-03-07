@@ -26,7 +26,7 @@ type MarkDeleteURL struct {
 }
 
 // ErrNotFound полный адрес не найден.
-var ErrNotFound error = errors.New("not found full url")
+var ErrNotFound error = errors.New("not wantFound full url")
 
 // ErrOriginalURLExist полный адрес уже существует в хранилище.
 var ErrOriginalURLExist error = errors.New("original url already exist in storage")
