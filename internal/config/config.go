@@ -20,6 +20,7 @@ const (
 	defaultFileStoragePath = "storage.txt"
 	defaultMigrationsPath  = "./internal/storage/migrations"
 	defaultShortURLSize    = 10
+	defaultTLS             = false
 	defaultStorageMode     = storage.StorageFromFile
 )
 
@@ -28,6 +29,7 @@ type Config struct {
 	StorageMode      storage.StorageType
 	Storage          storageConfig.Config
 	JWTTokenLifeTime time.Duration
+	TLS              bool
 	ShortURLSize     int
 	ServerAddr       string
 	ResultAddr       string
@@ -41,6 +43,7 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 		ResultAddr:       defaultResAddr,
 		StorageMode:      defaultStorageMode,
 		JWTTokenLifeTime: 24 * time.Hour,
+		TLS:              false,
 		Storage: storageConfig.Config{
 			InMemory: &memoryConfig.Config{},
 			FileStorage: &fileConfig.Config{
@@ -68,6 +71,7 @@ func (c *Config) build(logger *zap.Logger) {
 	flag.StringVar(&c.ResultAddr, "b", defaultResAddr, "Result host and port")
 	flag.StringVar(&c.Storage.FileStorage.FilePath, "f", defaultFileStoragePath, "File storage path")
 	flag.StringVar(&c.Storage.Database.DSN, "d", "", "StorageInDatabase DSN")
+	flag.BoolVar(&c.TLS, "s", defaultTLS, "TLS server mode")
 	flag.Parse()
 
 	var (
@@ -89,6 +93,9 @@ func (c *Config) build(logger *zap.Logger) {
 	}
 	if databaseEnvDSN, ok = os.LookupEnv("DATABASE_DSN"); ok {
 		c.Storage.Database.DSN = databaseEnvDSN
+	}
+	if _, ok = os.LookupEnv("ENABLE_HTTPS"); ok {
+		c.TLS = true
 	}
 
 	if c.Storage.Database.DSN != "" {

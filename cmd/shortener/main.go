@@ -13,6 +13,7 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/Melikhov-p/url-minimise/internal/worker"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 // BuildVersion = определяет версию приложения.
@@ -47,8 +48,26 @@ func main() {
 
 	router := app.CreateRouter(cfg, store, logger)
 
-	logger.Info("Running server on", zap.String("address", cfg.ServerAddr))
-	err = http.ListenAndServe(cfg.ServerAddr, router)
+	server := &http.Server{
+		Addr:    cfg.ServerAddr,
+		Handler: router}
+
+	if cfg.TLS {
+		manager := autocert.Manager{
+			// директория для хранения сертификатов
+			Cache: autocert.DirCache("cache-dir"),
+			// функция, принимающая Terms of Service издателя сертификатов
+			Prompt: autocert.AcceptTOS,
+			// перечень доменов, для которых будут поддерживаться сертификаты
+			HostPolicy: autocert.HostWhitelist("mysite.ru", "www.mysite.ru"),
+		}
+		server.TLSConfig = manager.TLSConfig()
+		logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", true))
+		err = server.ListenAndServeTLS("", "")
+	} else {
+		logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", false))
+		err = server.ListenAndServe()
+	}
 
 	if err != nil {
 		logger.Fatal("Fatal error", zap.Error(err))
