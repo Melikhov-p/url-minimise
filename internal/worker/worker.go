@@ -20,6 +20,7 @@ type DelWorker struct {
 	PingInterval time.Duration
 	Logger       *zap.Logger
 	Storage      repository.Storage
+	stop         bool
 }
 
 // NewDelWorker возвращает воркера, который будет следить за тасками на удаление
@@ -28,6 +29,7 @@ func NewDelWorker(pingInterval time.Duration, logger *zap.Logger, storage reposi
 		PingInterval: pingInterval,
 		Logger:       logger,
 		Storage:      storage,
+		stop:         false,
 	}
 }
 
@@ -35,6 +37,11 @@ func NewDelWorker(pingInterval time.Duration, logger *zap.Logger, storage reposi
 func (dw *DelWorker) LookUp() {
 	dw.Logger.Info("worker: starting look up for delete tasks")
 	for {
+		if dw.stop {
+			dw.Logger.Debug("del worker stopped")
+			return
+		}
+
 		dw.Logger.Debug("worker: ping tasks")
 		ctx := context.Background()
 		tasks, err := taskService.GetDeleteTasksWStatus(ctx, models.Registered, dw.Storage)
@@ -67,4 +74,9 @@ func (dw *DelWorker) LookUp() {
 
 		time.Sleep(dw.PingInterval)
 	}
+}
+
+func (dw *DelWorker) Stop() {
+	dw.Logger.Debug("del worker got signal for stopping")
+	dw.stop = true
 }

@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/Melikhov-p/url-minimise/internal/app"
@@ -43,14 +48,14 @@ func main() {
 		logger.Fatal("error getting new storage", zap.Error(err))
 	}
 
-	delWorker := worker.NewDelWorker(delWorkerPingInterval, logger, store)
-	go delWorker.LookUp()
-
 	router := app.CreateRouter(cfg, store, logger)
 
 	server := &http.Server{
 		Addr:    cfg.ServerAddr,
 		Handler: router}
+
+	stopCh := make(chan os.Signal, 1)
+	signal.Notify(stopCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	if cfg.TLS {
 		manager := autocert.Manager{
@@ -63,13 +68,33 @@ func main() {
 		}
 		server.TLSConfig = manager.TLSConfig()
 		logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", true))
-		err = server.ListenAndServeTLS("", "")
+		go func() {
+			if err = server.ListenAndServeTLS("", ""); err != nil &&
+				errors.Is(err, http.ErrServerClosed) {
+				logger.Fatal("fatal error in listen and serve", zap.Error(err))
+			}
+		}()
 	} else {
 		logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", false))
-		err = server.ListenAndServe()
+		go func() {
+			if err = server.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+				logger.Fatal("fatal error in listen and serve", zap.Error(err))
+			}
+		}()
 	}
 
+	delWorker := worker.NewDelWorker(delWorkerPingInterval, logger, store)
+	go delWorker.LookUp()
+
+	sig := <-stopCh
+	logger.Debug("stop signal received", zap.Any("signal", sig))
+
+	delWorker.Stop()
+
+	err = server.Shutdown(context.Background())
 	if err != nil {
-		logger.Fatal("Fatal error", zap.Error(err))
+		logger.Fatal("error shutdown server", zap.Error(err))
 	}
+
+	logger.Debug("graceful shutdown complete")
 }
