@@ -80,16 +80,13 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 }
 
 // getConfigFromFile get config params from file with provided path.
-func (c *Config) getConfigFromFile(log *zap.Logger) bool {
-	flag.StringVar(&c.ConfigPath, "c", "", "Config file path")
-	flag.StringVar(&c.ConfigPath, "config", "", "Config file path")
-	flag.Parse()
+func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) bool {
 	if c.ConfigPath == "" {
 		log.Debug("path to config file is empty")
 		return false
 	}
 
-	f, err := os.OpenFile(c.ConfigPath, os.O_RDONLY, 0666)
+	f, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Error("cannot open config file", zap.String("path", c.ConfigPath), zap.Error(err))
 		return false
@@ -123,31 +120,35 @@ func (c *Config) getConfigFromFile(log *zap.Logger) bool {
 	if cfgF.EnableHTTPS {
 		c.TLS = true
 	}
-	if cfgF.FileStoragePath != "" {
+	if cfgF.FileStoragePath != "" && c.Storage.FileStorage.FilePath == defaultFileStoragePath {
 		c.Storage.FileStorage.FilePath = cfgF.FileStoragePath
 	}
-	if cfgF.DatabaseDsn != "" {
+	if cfgF.DatabaseDsn != "" && c.Storage.Database.DSN == "" {
 		c.Storage.Database.DSN = cfgF.DatabaseDsn
 	}
-	if cfgF.BaseURL != "" {
+	if cfgF.BaseURL != "" && c.ResultAddr == defaultResAddr {
 		c.ResultAddr = cfgF.BaseURL
 	}
-	if cfgF.ServerAddress != "" {
-		c.ResultAddr = cfgF.ServerAddress
+	log.Debug("srv addr", zap.String("file", cfgF.ServerAddress), zap.String("struct", c.ServerAddr))
+	if cfgF.ServerAddress != "" && c.ServerAddr == defaultSrvAddr {
+		c.ServerAddr = cfgF.ServerAddress
 	}
 
 	return true
 }
 
 func (c *Config) build(logger *zap.Logger) {
-	c.getConfigFromFile(logger)
-
 	flag.StringVar(&c.ServerAddr, "a", defaultSrvAddr, "Server host and port")
 	flag.StringVar(&c.ResultAddr, "b", defaultResAddr, "Result host and port")
 	flag.StringVar(&c.Storage.FileStorage.FilePath, "f", defaultFileStoragePath, "File storage path")
 	flag.StringVar(&c.Storage.Database.DSN, "d", "", "StorageInDatabase DSN")
 	flag.BoolVar(&c.TLS, "s", defaultTLS, "TLS server mode")
+
+	flag.StringVar(&c.ConfigPath, "c", "", "Config file path")
+	flag.StringVar(&c.ConfigPath, "config", "", "Config file path")
 	flag.Parse()
+
+	c.getConfigFromFile(c.ConfigPath, logger)
 
 	var (
 		srvEnvAddr         string
