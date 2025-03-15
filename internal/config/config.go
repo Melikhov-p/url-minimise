@@ -1,7 +1,9 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
+	"io"
 	"os"
 	"time"
 
@@ -24,6 +26,15 @@ const (
 	defaultStorageMode     = storage.StorageFromFile
 )
 
+// cfgFromFile structure for fields from config file.
+type cfgFromFile struct {
+	ServerAddress   string `json:"server_address"`
+	BaseURL         string `json:"base_url"`
+	FileStoragePath string `json:"file_storage_path"`
+	DatabaseDsn     string `json:"database_dsn"`
+	EnableHTTPS     bool   `json:"enable_https"`
+}
+
 // Config структура конфига.
 type Config struct {
 	StorageMode      storage.StorageType
@@ -34,6 +45,7 @@ type Config struct {
 	ServerAddr       string
 	ResultAddr       string
 	SecretKey        string
+	ConfigPath       string
 }
 
 // NewConfig Возвращает указатель на конфиг, withoutFlags нужен для тестов, чтобы не читать флаги постоянно.
@@ -56,6 +68,7 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 		},
 		ShortURLSize: defaultShortURLSize,
 		SecretKey:    "",
+		ConfigPath:   "",
 	}
 	if withoutFlags {
 		return cfg
@@ -66,7 +79,69 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 	return cfg
 }
 
+// getConfigFromFile get config params from file with provided path.
+func (c *Config) getConfigFromFile(log *zap.Logger) bool {
+	flag.StringVar(&c.ConfigPath, "c", "", "Config file path")
+	flag.StringVar(&c.ConfigPath, "config", "", "Config file path")
+	flag.Parse()
+	if c.ConfigPath == "" {
+		log.Debug("path to config file is empty")
+		return false
+	}
+
+	f, err := os.OpenFile(c.ConfigPath, os.O_RDONLY, 0666)
+	if err != nil {
+		log.Error("cannot open config file", zap.String("path", c.ConfigPath), zap.Error(err))
+		return false
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+
+	log.Debug("config file opened")
+	cfgF := cfgFromFile{
+		ServerAddress:   "",
+		BaseURL:         "",
+		FileStoragePath: "",
+		DatabaseDsn:     "",
+		EnableHTTPS:     false,
+	}
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		log.Error("error read bytes", zap.Error(err))
+		return false
+	}
+
+	err = json.Unmarshal(data, &cfgF)
+	if err != nil {
+		log.Error("error unmarshal", zap.Error(err))
+		return false
+	}
+
+	log.Debug("config from file has been read")
+	if cfgF.EnableHTTPS {
+		c.TLS = true
+	}
+	if cfgF.FileStoragePath != "" {
+		c.Storage.FileStorage.FilePath = cfgF.FileStoragePath
+	}
+	if cfgF.DatabaseDsn != "" {
+		c.Storage.Database.DSN = cfgF.DatabaseDsn
+	}
+	if cfgF.BaseURL != "" {
+		c.ResultAddr = cfgF.BaseURL
+	}
+	if cfgF.ServerAddress != "" {
+		c.ResultAddr = cfgF.ServerAddress
+	}
+
+	return true
+}
+
 func (c *Config) build(logger *zap.Logger) {
+	c.getConfigFromFile(logger)
+
 	flag.StringVar(&c.ServerAddr, "a", defaultSrvAddr, "Server host and port")
 	flag.StringVar(&c.ResultAddr, "b", defaultResAddr, "Result host and port")
 	flag.StringVar(&c.Storage.FileStorage.FilePath, "f", defaultFileStoragePath, "File storage path")
@@ -77,10 +152,15 @@ func (c *Config) build(logger *zap.Logger) {
 	var (
 		srvEnvAddr         string
 		resEnvAddr         string
+		cfgPathEnv         string
 		fileStoragePathEnv string
 		databaseEnvDSN     string
 		ok                 bool
 	)
+
+	if cfgPathEnv, ok = os.LookupEnv("CONFIG"); ok {
+		c.ConfigPath = cfgPathEnv
+	}
 
 	if srvEnvAddr, ok = os.LookupEnv("SERVER_ADDRESS"); ok {
 		c.ServerAddr = srvEnvAddr
