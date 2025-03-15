@@ -31,6 +31,7 @@ type Storage interface {
 	Ping(context.Context) error
 	AddUser(ctx context.Context) (*models.User, error)
 	GetURLsByUserID(ctx context.Context, userID int) ([]*models.StorageURL, error)
+	Close() error
 }
 
 // StorageSaver для хранилищ, которым нужен отдельный метод для сохранения данных, например файл.

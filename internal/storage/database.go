@@ -19,6 +19,16 @@ type DatabaseStorage struct {
 
 const dbTimeout = 15 * time.Second
 
+// Close connection.
+func (db *DatabaseStorage) Close() error {
+	err := db.DB.Close()
+	if err != nil {
+		return fmt.Errorf("error closing db %w", err)
+	}
+
+	return nil
+}
+
 // AddURL добавить URL.
 func (db *DatabaseStorage) AddURL(ctx context.Context, newURL *models.StorageURL) (string, error) {
 	// Add new url in storage, return short url and error.
