@@ -76,13 +76,14 @@ func (dw *DelWorker) LookUp() {
 	}
 
 	dw.Logger.Debug("del worker stopped")
-	return
 }
 
+// pingAfterInterval ping tasks after interval.
 func (dw *DelWorker) pingAfterInterval() {
 	dw.PingPoint = time.Now().Add(dw.PingInterval)
 }
 
+// Stop worker.
 func (dw *DelWorker) Stop() {
 	dw.Logger.Debug("del worker got signal for stopping")
 	dw.stop = true

@@ -46,9 +46,9 @@ func main() {
 	}
 
 	log.Println("graceful shutdown complete")
-	return
 }
 
+// Run start all
 func Run() (err error) {
 	rootCtx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 	defer cancelCtx()
@@ -67,7 +67,7 @@ func Run() (err error) {
 
 	logger, err := loggerBuilder.BuildLogger("DEBUG")
 	if err != nil {
-		log.Fatalf("cannot run logger: %v", err)
+		return fmt.Errorf("error building logger %w", err)
 	}
 
 	cfg := config.NewConfig(logger, false)
@@ -104,15 +104,13 @@ func Run() (err error) {
 			server.TLSConfig = manager.TLSConfig()
 			logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", true))
 			if err = server.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("error listen and server", zap.Error(err))
-				return err
+				return fmt.Errorf("error listen and server: %w", err)
 			}
 			return nil
 		} else {
 			logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", false))
 			if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Error("error listen and server", zap.Error(err))
-				return err
+				return fmt.Errorf("error listen and server: %w", err)
 			}
 			return nil
 		}

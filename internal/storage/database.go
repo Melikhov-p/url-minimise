@@ -19,6 +19,7 @@ type DatabaseStorage struct {
 
 const dbTimeout = 15 * time.Second
 
+// Close connection.
 func (db *DatabaseStorage) Close() error {
 	err := db.DB.Close()
 	if err != nil {

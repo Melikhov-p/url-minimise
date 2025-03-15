@@ -26,6 +26,7 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
+// Close do nothing, but implementing interface Storage.
 func (s *MemoryStorage) Close() error {
 	return nil
 }
