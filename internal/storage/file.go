@@ -29,3 +29,12 @@ func (s *FileStorage) Save(record *models.StorageURL) error {
 	}
 	return nil
 }
+
+func (s *FileStorage) Close() error {
+	err := s.File.Close()
+	if err != nil {
+		return fmt.Errorf("error closing file %w", err)
+	}
+
+	return nil
+}

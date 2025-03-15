@@ -26,6 +26,10 @@ func NewMemoryStorage() *MemoryStorage {
 	}
 }
 
+func (s *MemoryStorage) Close() error {
+	return nil
+}
+
 // AddURL добавить адрес.
 func (s *MemoryStorage) AddURL(ctx context.Context, newURL *models.StorageURL) (string, error) {
 	if short, ok := s.checkFull(ctx, newURL.OriginalURL); ok {
