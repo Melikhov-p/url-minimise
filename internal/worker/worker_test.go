@@ -57,7 +57,7 @@ func TestDelWorker_Stop(t *testing.T) {
 
 	dw.Stop()
 
-	_, _ = <-dw.stop // имитируем чтение из канала.
+	<-dw.stop // имитируем чтение из канала.
 
 	_, chOpened := <-dw.stop
 
