@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	ErrEmptyConfigPath = errors.New("path to config file is empty")
+	errEmptyConfigPath = errors.New("path to config file is empty")
 )
 
 const (
@@ -88,7 +88,7 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 // getConfigFromFile get config params from file with provided path.
 func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) error {
 	if c.ConfigPath == "" {
-		return ErrEmptyConfigPath
+		return errEmptyConfigPath
 	}
 
 	f, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
@@ -154,7 +154,7 @@ func (c *Config) build(logger *zap.Logger) {
 	flag.Parse()
 
 	err := c.getConfigFromFile(c.ConfigPath, logger)
-	if err != nil && !errors.Is(err, ErrEmptyConfigPath) {
+	if err != nil && !errors.Is(err, errEmptyConfigPath) {
 		logger.Error(
 			"error reading config from file",
 			zap.Error(err),
