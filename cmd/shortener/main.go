@@ -44,8 +44,6 @@ func main() {
 	if err := Run(); err != nil {
 		log.Fatal(err)
 	}
-
-	log.Println("graceful shutdown complete")
 }
 
 // Run start all
@@ -81,7 +79,9 @@ func Run() (err error) {
 
 		<-ctx.Done()
 
-		_ = store.Close()
+		err = store.Close()
+
+		logger.Error("error closing storage", zap.Error(err))
 		return nil
 	})
 
@@ -89,7 +89,8 @@ func Run() (err error) {
 
 	server := &http.Server{
 		Addr:    cfg.ServerAddr,
-		Handler: router}
+		Handler: router,
+	}
 
 	eg.Go(func() error {
 		if cfg.TLS {
@@ -107,13 +108,13 @@ func Run() (err error) {
 				return fmt.Errorf("error listen and server: %w", err)
 			}
 			return nil
-		} else {
-			logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", false))
-			if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				return fmt.Errorf("error listen and server: %w", err)
-			}
-			return nil
 		}
+
+		logger.Info("Running server on", zap.String("address", cfg.ServerAddr), zap.Bool("TLS", false))
+		if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("error listen and server: %w", err)
+		}
+		return nil
 	})
 
 	eg.Go(func() error {

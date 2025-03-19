@@ -2,7 +2,9 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -14,6 +16,10 @@ import (
 	"github.com/Melikhov-p/url-minimise/internal/storage"
 	_ "github.com/jackc/pgx/v5" // PostgreSQL driver.
 	"go.uber.org/zap"
+)
+
+var (
+	ErrEmptyConfigPath = errors.New("path to config file is empty")
 )
 
 const (
@@ -80,21 +86,22 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 }
 
 // getConfigFromFile get config params from file with provided path.
-func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) bool {
+func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) error {
 	if c.ConfigPath == "" {
-		log.Debug("path to config file is empty")
-		return false
+		return ErrEmptyConfigPath
 	}
 
 	f, err := os.OpenFile(filePath, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Error("cannot open config file", zap.String("path", c.ConfigPath), zap.Error(err))
-		return false
+		return fmt.Errorf("error open config file %w", err)
 	}
 	defer func() {
-		_ = f.Close()
+		err = f.Close()
+		log.Error("error closing config file", zap.Error(err))
 	}()
 
+	log = log.With(zap.String("config_file", f.Name()))
 	log.Debug("config file opened")
 	cfgF := cfgFromFile{
 		ServerAddress:   "",
@@ -106,14 +113,12 @@ func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) bool {
 
 	data, err := io.ReadAll(f)
 	if err != nil {
-		log.Error("error read bytes", zap.Error(err))
-		return false
+		return fmt.Errorf("error reading bytes %w", err)
 	}
 
 	err = json.Unmarshal(data, &cfgF)
 	if err != nil {
-		log.Error("error unmarshal", zap.Error(err))
-		return false
+		return fmt.Errorf("error unmarshal data to json %w", err)
 	}
 
 	log.Debug("config from file has been read")
@@ -134,7 +139,7 @@ func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) bool {
 		c.ServerAddr = cfgF.ServerAddress
 	}
 
-	return true
+	return nil
 }
 
 func (c *Config) build(logger *zap.Logger) {
@@ -148,7 +153,14 @@ func (c *Config) build(logger *zap.Logger) {
 	flag.StringVar(&c.ConfigPath, "config", "", "Config file path")
 	flag.Parse()
 
-	c.getConfigFromFile(c.ConfigPath, logger)
+	err := c.getConfigFromFile(c.ConfigPath, logger)
+	if err != nil && !errors.Is(err, ErrEmptyConfigPath) {
+		logger.Error(
+			"error reading config from file",
+			zap.Error(err),
+			zap.String("file_path", c.ConfigPath),
+		)
+	}
 
 	var (
 		srvEnvAddr         string

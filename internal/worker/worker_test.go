@@ -40,3 +40,43 @@ func TestNewDelWorker(t *testing.T) {
 
 	assert.Equal(t, dw.PingInterval, pingInterval)
 }
+
+func TestDelWorker_Stop(t *testing.T) {
+	pingInterval := 15 * time.Second
+	log, err := logger.BuildLogger("ERROR")
+	if err != nil {
+		panic(err.Error())
+	}
+	store, err := repository.NewStorage(config.NewConfig(log, true), log)
+	if err != nil {
+		panic(err.Error())
+	}
+	dw := NewDelWorker(pingInterval, log, store)
+
+	assert.Equal(t, dw.PingInterval, pingInterval)
+
+	dw.Stop()
+
+	_, _ = <-dw.stop // имитируем чтение из канала.
+
+	_, chOpened := <-dw.stop
+
+	assert.Equal(t, false, chOpened)
+}
+
+func TestPingAfterInterval(t *testing.T) {
+	pingInterval := 15 * time.Second
+	log, err := logger.BuildLogger("ERROR")
+	if err != nil {
+		panic(err.Error())
+	}
+	store, err := repository.NewStorage(config.NewConfig(log, true), log)
+	if err != nil {
+		panic(err.Error())
+	}
+	dw := NewDelWorker(pingInterval, log, store)
+
+	dw.pingAfterInterval()
+
+	assert.True(t, true, time.Now().Before(dw.PingPoint))
+}

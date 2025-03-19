@@ -73,3 +73,23 @@ func TestSave(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, *newURL, savedURL)
 }
+
+func TestFileStorage_Close(t *testing.T) {
+	// Создаем временный файл для теста
+	file, err := os.CreateTemp("", "testfile.txt")
+	assert.NoError(t, err)
+	defer func() {
+		_ = os.Remove(file.Name())
+	}()
+
+	storage := &FileStorage{
+		MemoryStorage: *NewMemoryStorage(),
+		File:          file,
+		Encoder:       json.NewEncoder(file),
+		Scanner:       bufio.NewScanner(file),
+	}
+
+	err = storage.Close()
+
+	assert.NoError(t, err)
+}
