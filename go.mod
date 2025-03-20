@@ -11,6 +11,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/pressly/goose/v3 v3.21.1
+	golang.org/x/crypto v0.33.0
 	golang.org/x/tools v0.26.0
 	honnef.co/go/tools v0.5.1
 )
@@ -20,7 +21,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/rogpeppe/go-internal v1.6.1 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect

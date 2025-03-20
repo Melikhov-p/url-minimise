@@ -554,6 +554,8 @@ issues:
     - "G201: SQL string formatting"
     - "context-keys-type: should not use basic type string as key in context.WithValue"
     - "SA1029: should not use built-in type string as key for value; define your own type to avoid collisions"
+    - "octalLiteral: use new octal literal style, 0o666"
+    - "mnd: Magic number: 0666, in <argument> detected"
 
   # Which dirs to exclude: issues from them won't be reported.
   # Can use regexp here: `generated.*`, regexp is applied on full path,

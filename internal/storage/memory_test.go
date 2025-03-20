@@ -211,3 +211,11 @@ func TestNewMemoryStorage_checkFull(t *testing.T) {
 	_, ok := storage.checkFull(context.Background(), "full")
 	assert.False(t, ok)
 }
+
+func TestMemoryStorage_Close(t *testing.T) {
+	storage := NewMemoryStorage()
+
+	err := storage.Close()
+
+	assert.NoError(t, err)
+}

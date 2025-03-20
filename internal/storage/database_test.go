@@ -662,3 +662,26 @@ func TestDatabaseStorage_GetDeleteTasksWStatus(t *testing.T) {
 		assert.NoError(t, err)
 	}
 }
+
+func TestDatabaseStorage_Close(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	storage := DatabaseStorage{
+		DB: db,
+	}
+
+	mock.ExpectClose()
+
+	err = storage.Close()
+
+	assert.NoError(t, err)
+
+	err = mock.ExpectationsWereMet()
+	assert.NoError(t, err)
+}
