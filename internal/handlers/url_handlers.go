@@ -333,6 +333,7 @@ func APIMarkAsDeletedURLs(
 	w.WriteHeader(http.StatusAccepted)
 }
 
+// GetServiceStats получить статистику сервиса: количество юзеров и URL.
 func GetServiceStats(
 	w http.ResponseWriter,
 	r *http.Request,

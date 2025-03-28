@@ -426,6 +426,7 @@ func (db *DatabaseStorage) GetSecretKey(ctx context.Context) (string, error) {
 	return key, nil
 }
 
+// GetURLsCount получить количество URL.
 func (db *DatabaseStorage) GetURLsCount(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
@@ -444,6 +445,7 @@ func (db *DatabaseStorage) GetURLsCount(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+// GetUsersCount получить количество пользователей.
 func (db *DatabaseStorage) GetUsersCount(ctx context.Context) (int, error) {
 	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
 	defer cancel()
