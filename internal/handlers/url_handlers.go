@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 
 	"github.com/Melikhov-p/url-minimise/internal/config"
@@ -330,6 +331,77 @@ func APIMarkAsDeletedURLs(
 		}
 	}()
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func GetServiceStats(
+	w http.ResponseWriter,
+	r *http.Request,
+	cfg *config.Config,
+	storage repository.Storage,
+	logger *zap.Logger,
+) {
+	ctx := r.Context()
+
+	var (
+		usrIPHeader string
+		usrIP       net.IP
+		trustedNet  *net.IPNet
+		err         error
+		usersCount  int
+		urlsCount   int
+	)
+
+	if usrIPHeader = r.Header.Get("X-Real-IP"); usrIPHeader == "" {
+		logger.Error("empty X-Real-IP header in stats request")
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	usrIP = net.ParseIP(usrIPHeader)
+	if usrIP == nil {
+		logger.Error("error parsing IP from header", zap.String("IP header", usrIPHeader))
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	_, trustedNet, err = net.ParseCIDR(cfg.TrustedSubNet)
+	if err != nil {
+		logger.Error("error parsing CIDR from config", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if !trustedNet.Contains(usrIP) {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	usersCount, err = storage.GetUsersCount(ctx)
+	if err != nil {
+		logger.Error("error getting users count", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	urlsCount, err = storage.GetURLsCount(ctx)
+	if err != nil {
+		logger.Error("error getting urls count", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	sr := models.StatsResponse{
+		URLs:  urlsCount,
+		Users: usersCount,
+	}
+
+	enc := json.NewEncoder(w)
+	if err = enc.Encode(sr); err != nil {
+		logger.Error("error encoding json to stats request", zap.Error(err))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // PingDatabase проверка соединения с базой данных.

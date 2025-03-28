@@ -30,6 +30,7 @@ const (
 	defaultShortURLSize    = 10
 	defaultTLS             = false
 	defaultStorageMode     = storage.StorageFromFile
+	defaultTrustedSubNet   = "192.168.1.0/24"
 )
 
 // cfgFromFile structure for fields from config file.
@@ -38,6 +39,7 @@ type cfgFromFile struct {
 	BaseURL         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDsn     string `json:"database_dsn"`
+	TrustedSubNet   string `json:"trusted_subnet"`
 	EnableHTTPS     bool   `json:"enable_https"`
 }
 
@@ -48,6 +50,7 @@ type Config struct {
 	JWTTokenLifeTime time.Duration
 	TLS              bool
 	ShortURLSize     int
+	TrustedSubNet    string
 	ServerAddr       string
 	ResultAddr       string
 	SecretKey        string
@@ -72,16 +75,17 @@ func NewConfig(logger *zap.Logger, withoutFlags bool) *Config {
 				MigrationsPath: defaultMigrationsPath,
 			},
 		},
-		ShortURLSize: defaultShortURLSize,
-		SecretKey:    "",
-		ConfigPath:   "",
+		ShortURLSize:  defaultShortURLSize,
+		TrustedSubNet: defaultTrustedSubNet,
+		SecretKey:     "",
+		ConfigPath:    "",
 	}
 	if withoutFlags {
 		return cfg
 	}
 
 	cfg.build(logger)
-
+	logger.Debug("config", zap.Any("", cfg))
 	return cfg
 }
 
@@ -108,6 +112,7 @@ func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) error {
 		BaseURL:         "",
 		FileStoragePath: "",
 		DatabaseDsn:     "",
+		TrustedSubNet:   "",
 		EnableHTTPS:     false,
 	}
 
@@ -138,6 +143,9 @@ func (c *Config) getConfigFromFile(filePath string, log *zap.Logger) error {
 	if cfgF.ServerAddress != "" && c.ServerAddr == defaultSrvAddr {
 		c.ServerAddr = cfgF.ServerAddress
 	}
+	if cfgF.TrustedSubNet != "" && c.TrustedSubNet == defaultTrustedSubNet {
+		c.TrustedSubNet = cfgF.TrustedSubNet
+	}
 
 	return nil
 }
@@ -147,6 +155,7 @@ func (c *Config) build(logger *zap.Logger) {
 	flag.StringVar(&c.ResultAddr, "b", defaultResAddr, "Result host and port")
 	flag.StringVar(&c.Storage.FileStorage.FilePath, "f", defaultFileStoragePath, "File storage path")
 	flag.StringVar(&c.Storage.Database.DSN, "d", "", "StorageInDatabase DSN")
+	flag.StringVar(&c.TrustedSubNet, "t", defaultTrustedSubNet, "trusted subnet")
 	flag.BoolVar(&c.TLS, "s", defaultTLS, "TLS server mode")
 
 	flag.StringVar(&c.ConfigPath, "c", "", "Config file path")
@@ -168,6 +177,7 @@ func (c *Config) build(logger *zap.Logger) {
 		cfgPathEnv         string
 		fileStoragePathEnv string
 		databaseEnvDSN     string
+		trustedSubNetEnv   string
 		ok                 bool
 	)
 
@@ -189,6 +199,9 @@ func (c *Config) build(logger *zap.Logger) {
 	}
 	if _, ok = os.LookupEnv("ENABLE_HTTPS"); ok {
 		c.TLS = true
+	}
+	if trustedSubNetEnv, ok = os.LookupEnv("TRUSTED_SUBNET"); ok {
+		c.TrustedSubNet = trustedSubNetEnv
 	}
 
 	if c.Storage.Database.DSN != "" {

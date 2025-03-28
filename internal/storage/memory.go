@@ -174,3 +174,11 @@ func (s *MemoryStorage) GetURLsByUserID(_ context.Context, userID int) ([]*model
 	}
 	return []*models.StorageURL{}, nil
 }
+
+func (s *MemoryStorage) GetURLsCount(_ context.Context) (int, error) {
+	return len(s.urls), nil
+}
+
+func (s *MemoryStorage) GetUsersCount(_ context.Context) (int, error) {
+	return len(s.users), nil
+}

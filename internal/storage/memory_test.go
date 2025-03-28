@@ -219,3 +219,21 @@ func TestMemoryStorage_Close(t *testing.T) {
 
 	assert.NoError(t, err)
 }
+
+func TestMemoryStorage_GetURLsCount(t *testing.T) {
+	storage := NewMemoryStorage()
+
+	count, err := storage.GetURLsCount(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
+}
+
+func TestMemoryStorage_GetUsersCount(t *testing.T) {
+	storage := NewMemoryStorage()
+
+	count, err := storage.GetUsersCount(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, count)
+}
