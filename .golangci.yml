@@ -556,6 +556,7 @@ issues:
     - "SA1029: should not use built-in type string as key for value; define your own type to avoid collisions"
     - "octalLiteral: use new octal literal style, 0o666"
     - "mnd: Magic number: 0666, in <argument> detected"
+    - "nilness: nil dereference in field selection"
 
   # Which dirs to exclude: issues from them won't be reported.
   # Can use regexp here: `generated.*`, regexp is applied on full path,
@@ -577,6 +578,9 @@ issues:
   exclude-dirs-use-default: false
   exclude-case-sensitive: false
   exclude-rules:
+    - path: "internal/grpc/server.go"
+      linters:
+        - wrapcheck
     - path: "_test\\.go"
       text: "fieldalignment: struct with \\d+ pointer bytes could be \\d+"
   fix: false

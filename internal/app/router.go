@@ -44,6 +44,9 @@ func CreateRouter(cfg *config.Config, storage repository.Storage, logger *zap.Lo
 			r.Get("/urls", wrapper(handlers.GetUserURLs, cfg, storage, logger))
 			r.Delete("/urls", wrapper(handlers.APIMarkAsDeletedURLs, cfg, storage, logger))
 		})
+		r.Route("/internal", func(r chi.Router) {
+			r.Get("/stats", wrapper(handlers.GetServiceStats, cfg, storage, logger))
+		})
 	})
 
 	return router

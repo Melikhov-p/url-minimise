@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package shortener;
+
+option go_package = "github.com/Melikhov-p/url-minimise/internal/proto";
+
+import "google/protobuf/empty.proto";
+
+service Shortener {
+  rpc CreateURL(CreateURLRequest) returns (CreateURLResponse);
+  rpc GetFullURL(GetFullURLRequest) returns (GetFullURLResponse);
+  rpc CreateBatchURL(CreateBatchURLRequest) returns (google.protobuf.Empty);
+  rpc GetServiceStats(google.protobuf.Empty) returns (GetServiceStatsResponse);
+  rpc GetUserURLs(google.protobuf.Empty) returns (GetUserURLsResponse);
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc MarkAsDelete(MarkDeletedURLs) returns (google.protobuf.Empty);
+}
+
+
+message CreateURLRequest {
+  string original_url = 1;
+}
+
+message CreateURLResponse {
+  string short_url = 1;
+}
+
+
+message GetFullURLRequest {
+  string short_url = 1;
+}
+
+message GetFullURLResponse {
+  string original_url = 1;
+}
+
+
+message BatchURL {
+  string correlation_id = 1;
+  string original_url = 2;
+}
+message BatchResponseURL {
+  string correlation_id = 1;
+  string short_url = 2;
+}
+
+message CreateBatchURLRequest {
+  repeated BatchURL batch_urls = 1;
+}
+
+message CreateBatchURLResponse {
+  repeated BatchResponseURL batch_urls = 1;
+}
+
+
+message MarkDeletedURLs {
+  repeated string short_urls = 1;
+}
+
+
+message GetServiceStatsResponse {
+  sint32 users = 1;
+  sint32 urls = 2;
+}
+
+
+message UserURL {
+  string original_url = 1;
+  string short_url = 2;
+}
+
+message GetUserURLsResponse {
+  repeated UserURL user_urls = 1;
+}
+
+
