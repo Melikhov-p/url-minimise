@@ -185,7 +185,7 @@ func (s *Shortener) MarkAsDelete(ctx context.Context, in *proto.MarkDeletedURLs)
 // GetServiceStats возвращает статистику сервиса.
 func (s *Shortener) GetServiceStats(ctx context.Context, _ *emptypb.Empty) (*proto.GetServiceStatsResponse, error) {
 	var (
-		res         *proto.GetServiceStatsResponse
+		res         proto.GetServiceStatsResponse
 		usrIPHeader string
 		usrIP       net.IP
 		trustedNet  *net.IPNet
@@ -229,7 +229,7 @@ func (s *Shortener) GetServiceStats(ctx context.Context, _ *emptypb.Empty) (*pro
 	res.Users = int32(usersCount)
 	res.Urls = int32(urlsCount)
 
-	return res, nil
+	return &res, nil
 }
 
 // GetUserURLs возвращает URL пользователя.
