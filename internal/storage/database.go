@@ -425,3 +425,41 @@ func (db *DatabaseStorage) GetSecretKey(ctx context.Context) (string, error) {
 	}
 	return key, nil
 }
+
+// GetURLsCount получить количество URL.
+func (db *DatabaseStorage) GetURLsCount(ctx context.Context) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	var (
+		count int
+		err   error
+	)
+
+	row := db.DB.QueryRowContext(ctx, `SELECT COUNT(original_url) from url`)
+
+	if err = row.Scan(&count); err != nil {
+		return -1, fmt.Errorf("error scanning URLs count %w", err)
+	}
+
+	return count, nil
+}
+
+// GetUsersCount получить количество пользователей.
+func (db *DatabaseStorage) GetUsersCount(ctx context.Context) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, dbTimeout)
+	defer cancel()
+
+	var (
+		count int
+		err   error
+	)
+
+	row := db.DB.QueryRowContext(ctx, `SELECT COUNT(id) from "user"`)
+
+	if err = row.Scan(&count); err != nil {
+		return -1, fmt.Errorf("error scanning user's count %w", err)
+	}
+
+	return count, nil
+}

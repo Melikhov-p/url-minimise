@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // подключаем пакет pprof
 	"os/signal"
@@ -13,12 +14,16 @@ import (
 
 	"github.com/Melikhov-p/url-minimise/internal/app"
 	"github.com/Melikhov-p/url-minimise/internal/config"
+	grpc2 "github.com/Melikhov-p/url-minimise/internal/grpc"
 	loggerBuilder "github.com/Melikhov-p/url-minimise/internal/logger"
+	"github.com/Melikhov-p/url-minimise/internal/middlewares"
 	"github.com/Melikhov-p/url-minimise/internal/repository"
 	"github.com/Melikhov-p/url-minimise/internal/worker"
+	"github.com/Melikhov-p/url-minimise/protos/gen/proto"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 )
 
 // BuildVersion = определяет версию приложения.
@@ -114,6 +119,41 @@ func Run() (err error) {
 		if err = server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("error listen and server: %w", err)
 		}
+		return nil
+	})
+
+	listen, err := net.Listen("tcp", ":3200")
+	if err != nil {
+		logger.Error("error running gRPC listnere", zap.Error(err))
+		<-ctx.Done()
+	}
+	serverRPC := grpc.NewServer(
+		grpc.UnaryInterceptor(
+			middlewares.NewUnaryInterceptor(
+				logger,
+				cfg,
+				store,
+			).UnaryAuthInterceptor,
+		),
+	)
+	proto.RegisterShortenerServer(serverRPC, grpc2.NewShortenerService(logger, cfg, store))
+
+	eg.Go(func() error {
+		logger.Debug("gRPC server is running on", zap.String("port", ":3200"))
+
+		if err := serverRPC.Serve(listen); err != nil {
+			return fmt.Errorf("error in gRPC server %w", err)
+		}
+
+		return nil
+	})
+
+	eg.Go(func() error {
+		defer logger.Debug("gRPC server has been stopped.")
+		<-ctx.Done()
+
+		serverRPC.GracefulStop()
+
 		return nil
 	})
 

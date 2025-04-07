@@ -42,3 +42,9 @@ type UserURL struct {
 	OriginalURL string `json:"original_url"`
 	ShortURL    string `json:"short_url"`
 }
+
+// StatsResponse структура ответа на запрос статистики.
+type StatsResponse struct {
+	URLs  int `json:"urls"`
+	Users int `json:"users"`
+}
