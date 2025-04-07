@@ -1,4 +1,5 @@
 # go-musthave-shortener-tpl
+![image](https://github.com/user-attachments/assets/a2948620-6302-4e41-8659-ad70b74dfc6a)
 
 HTTP/gRPC сервис сокращения ссылок.  
 ### Доступные методы:
